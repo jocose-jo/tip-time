@@ -1,5 +1,4 @@
 from env import DISCORD_TOKEN, MODE
-
 import bot_commands
 
 """
