@@ -3,7 +3,8 @@ from env import DISCORD_TOKEN, MODE
 import bot_commands
 
 """
-Tip-time discord bot. Powered by Pycord
+Tip-time discord bot. Powered by Pycord, MongoDB
+Authors: Joseph Gutierrez, Angelo Jay Delacruz
 """
 
 if __name__ == "__main__":
