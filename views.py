@@ -1,3 +1,4 @@
+from discord import ComponentType
 import discord
 import datetime
 
@@ -8,7 +9,19 @@ game_three_time = datetime.time()
 finished = False
 
 
-class StartView(discord.ui.View):
+class SelectView(discord.ui.View):
+    @discord.ui.select(
+        select_type=ComponentType.user_select,
+        placeholder="Select your partners",
+        min_values=2,
+        max_values=2,
+    )
+    async def select_callback(self, select, interaction): # the function called when the user is done selecting options
+        await interaction.response.send_message(f"{interaction.user.mention} selects {select.values[0].mention} and {select.values[1].mention} to start AROUND THE WORLD!")
+        await interaction.followup.send("Select Game", view=GameView())
+
+
+class GameView(discord.ui.View):
     @discord.ui.button(label="Start!", row=0, style=discord.ButtonStyle.primary, emoji="✅")
     async def first_button_callback(self, button, interaction):
         start_time = datetime.datetime.now()

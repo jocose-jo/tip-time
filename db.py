@@ -10,6 +10,11 @@ user_collection = db["Users"]
 rdw_game_collection = db["RDWGames"]
 
 
+def fetch_all_users():
+    all_user_ids = [result for result in user_collection.find({})]
+    return all_user_ids
+
+
 def save_new_user(user):
     user_query = {"_id": user.id}
     if user_collection.count_documents(user_query) == 0:
