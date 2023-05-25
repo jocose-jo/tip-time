@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+from views import StartView
 import discord
 import os
 
@@ -23,4 +24,20 @@ async def on_message(message):
     response = "DALE!"
     await message.channel.send(response)
 
-client.run(TOKEN)
+
+bot = discord.Bot()
+
+
+@bot.event
+async def on_ready():
+    print(f'We have logged in as {bot.user}')
+
+
+@bot.slash_command(name="start", description="Ask the bot to start around the world")
+async def start_around_the_world(ctx):
+    await ctx.respond("Start around the world?", view=StartView())
+
+
+bot.run(TOKEN)
+
+# client.run(TOKEN)
