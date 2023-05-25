@@ -1,26 +1,17 @@
-from dotenv import load_dotenv
-import discord
-import os
+from env import DISCORD_TOKEN, MODE
 
-intents = discord.Intents.default()
-intents.message_content = True
+import bot_commands
 
-client = discord.Client(intents=intents)
-load_dotenv()
-TOKEN = os.environ["DISCORD_TOKEN"]
+"""
+Tip-time discord bot. Powered by Pycord
+"""
 
+if __name__ == "__main__":
+    guild_ids = []
+    if MODE == 'development':
+        # TODO: get this to load in guild_ids to register new commands for faster development
+        pass
+    client = bot_commands.init_client()
+    bot_commands.add_bot_commands(client)
 
-@client.event
-async def on_ready():
-    print(f'We have logged in as {client.user}')
-
-
-@client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
-
-    response = "DALE!"
-    await message.channel.send(response)
-
-client.run(TOKEN)
+    client.run(DISCORD_TOKEN)
