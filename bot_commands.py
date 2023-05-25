@@ -17,8 +17,9 @@ def add_bot_commands(client):
         if message.author == client.user:
             return
 
-        response = "DALE!"
-        await message.channel.send(response)
+        if "dale" in message.content.lower():
+            await message.channel.send("DALE!")
+
         await client.process_commands(message)
 
     @client.command()
