@@ -44,9 +44,12 @@ class GameButton(discord.ui.Button):
         assert self.view is not None
         if self.status == "PENDING":
             game_attributes = {"_id": self.id, "name": self.name, "status": self.status, "start": datetime.datetime.now(), "end": self.end}
-            update_rdw_game(self.id, self.name, "IN-PROGRESS", datetime.datetime.now())
-            message = f"Current Game: {self.name} - started at: {game_attributes['start'].strftime('%I:%M %p')}"
-            await interaction.response.send_message(message, view=StartView(game_attributes))
+            was_updated, current_status = update_rdw_game(self.id, self.name, "IN-PROGRESS", datetime.datetime.now())
+            if was_updated:
+                message = f"Current Game: {self.name} - started at: {game_attributes['start'].strftime('%I:%M %p')}"
+                await interaction.response.send_message(message, view=StartView(game_attributes))
+            else:
+                await interaction.response.send_message(f"Game is {current_status}")
 
 
 class StartView(discord.ui.View):
@@ -59,16 +62,22 @@ class StartView(discord.ui.View):
         button.custom_id = f'finish-{self.attributes["_id"]}'
         end_time = datetime.datetime.now()
         total_time = end_time - self.attributes["start"]
-        update_rdw_game(self.attributes["_id"], self.attributes["name"], "COMPLETE", end_time)
-        await interaction.response.send_message(f"{self.attributes['name']} completed in {total_time}", view=GameView(run_id=self.attributes["_id"]))
-        is_run_complete, run_total_time = db.check_if_run_complete(self.attributes["_id"], end_time)
-        if is_run_complete:
-            await interaction.followup.send(f"AROUND THE WORLD COMPLETED! Total time: {run_total_time}")
+        was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "COMPLETE", end_time)
+        if was_updated:
+            await interaction.response.send_message(f"{self.attributes['name']} completed in {total_time}", view=GameView(run_id=self.attributes["_id"]))
+            is_run_complete, run_total_time = db.check_if_run_complete(self.attributes["_id"], end_time)
+            if is_run_complete:
+                await interaction.followup.send(f"AROUND THE WORLD COMPLETED! Total time: {run_total_time}")
+        else:
+            await interaction.response.send_message(f"Game is {current_status}")
 
     @discord.ui.button(label="Cancel!", row=0, style=discord.ButtonStyle.secondary, emoji="❌")
     async def cancel_button_callback(self, button, interaction):
         button.custom_id = f'cancel-{self.attributes["_id"]}'
         button.label = "CANCELED"
-        update_rdw_game(self.attributes["_id"], self.attributes["name"], "CANCELED", datetime.datetime.now())
-        await interaction.response.send_message(f"{self.attributes['name']} has been canceled")
-        await interaction.followup.send(view=GameView(run_id=self.attributes["_id"]))
+        was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "CANCELED", datetime.datetime.now())
+        if was_updated:
+            await interaction.response.send_message(f"{self.attributes['name']} has been canceled")
+            await interaction.followup.send(view=GameView(run_id=self.attributes["_id"]))
+        else:
+            await interaction.response.send_message(f"Game is {current_status}")

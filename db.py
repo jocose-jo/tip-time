@@ -91,19 +91,32 @@ def update_rdw_run(run_id, status, time):
 
 def update_rdw_game(run_id, game_name, status, time):
     run_query = {"_id": run_id, "game_data.name": game_name}
+    current_game = next(game for game in fetch_rdw_run(run_id)["game_data"] if game["name"] == game_name)
+    updated = False  # variable returned to view, verifies if update condition went through
+
     if status == "IN-PROGRESS":
-        runtime_collection.update_one(run_query, {'$set': {"game_data.$.start": time, "game_data.$.status": status}})
+        if current_game["status"] in ["PENDING"]:
+            runtime_collection.update_one(run_query, {'$set': {"game_data.$.start": time, "game_data.$.status": status}})
+            updated = True
     elif status == "COMPLETE":
-        runtime_collection.update_one(run_query, {'$set': {"game_data.$.end": time, "game_data.$.status": status}})
+        if current_game["status"] in ["IN-PROGRESS"]:
+            runtime_collection.update_one(run_query, {'$set': {"game_data.$.end": time, "game_data.$.status": status}})
+            updated = True
     elif status == "CANCELED":
         # do something else, maybe reset to pending?
-        runtime_collection.update_one(run_query, {'$set': {"game_data.$.start": None, "game_data.$.status": "PENDING"}})
+        if current_game["status"] in ["IN-PROGRESS"]:
+            runtime_collection.update_one(run_query, {'$set': {"game_data.$.start": None, "game_data.$.status": "PENDING"}})
+            updated = True
+    return updated, current_game["status"]
 
 
 def check_if_run_complete(run_id, time):
     run_attributes = fetch_rdw_run(run_id)
     is_complete = all([game["status"] == "COMPLETE" for game in run_attributes["game_data"]])
+    already_complete = run_attributes["status"] == "COMPLETE"
     total_time_for_run = "IN-PROGRESS"
+    if already_complete:
+        return already_complete, run_attributes["end"]
     if is_complete:
         update_rdw_run(run_id, "COMPLETE", time)
         total_time_for_run = time - run_attributes["start"]
