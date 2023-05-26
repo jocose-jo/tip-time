@@ -31,7 +31,7 @@ class GameView(discord.ui.View):
 
 class GameButton(discord.ui.Button):
     def __init__(self, run_id, game):
-        super().__init__(label=game["name"], style=discord.ButtonStyle.primary, row=0)
+        super().__init__(label=game["name"], custom_id=f"{game['name']}-{run_id}", style=discord.ButtonStyle.primary, row=0)
         # initialize values to keep track of button state
         self.id = run_id
         self.name = game["name"]
@@ -51,11 +51,12 @@ class GameButton(discord.ui.Button):
 
 class StartView(discord.ui.View):
     def __init__(self, attributes):
-        super().__init__()
+        super().__init__(timeout=None)
         self.attributes = attributes
 
     @discord.ui.button(label="Finished!", row=0, style=discord.ButtonStyle.primary, emoji="✅")
     async def finish_button_callback(self, button, interaction):
+        button.custom_id = f'finish-{self.attributes["_id"]}'
         end_time = datetime.datetime.now()
         total_time = end_time - self.attributes["start"]
         update_rdw_game(self.attributes["_id"], self.attributes["name"], "COMPLETE", end_time)
@@ -66,7 +67,8 @@ class StartView(discord.ui.View):
 
     @discord.ui.button(label="Cancel!", row=0, style=discord.ButtonStyle.secondary, emoji="❌")
     async def cancel_button_callback(self, button, interaction):
+        button.custom_id = f'cancel-{self.attributes["_id"]}'
         button.label = "CANCELED"
-        update_rdw_game(self.attributes["_id"], self.attributes["name"], "COMPLETE", datetime.datetime.now())
+        update_rdw_game(self.attributes["_id"], self.attributes["name"], "CANCELED", datetime.datetime.now())
         await interaction.response.send_message(f"{self.attributes['name']} has been canceled")
         await interaction.followup.send(view=GameView(run_id=self.attributes["_id"]))
