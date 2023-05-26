@@ -80,13 +80,31 @@ def fetch_rdw_run_or_create(run_id, users, start_time):
     return rdw_run
 
 
+def update_rdw_run(run_id, status, time):
+    run_query = {"_id": run_id}
+    if status == "COMPLETE":
+        runtime_collection.update_one(run_query, {'$set': {"end": time, "status": status}})
+    elif status == "CANCELED":
+        # do something else, maybe reset to pending?
+        runtime_collection.update_one(run_query, {'$set': {"start": None, "status": status}})
+
+
 def update_rdw_game(run_id, game_name, status, time):
     run_query = {"_id": run_id, "game_data.name": game_name}
-    print(runtime_collection.find_one(run_query))
     if status == "IN-PROGRESS":
         runtime_collection.update_one(run_query, {'$set': {"game_data.$.start": time, "game_data.$.status": status}})
     elif status == "COMPLETE":
         runtime_collection.update_one(run_query, {'$set': {"game_data.$.end": time, "game_data.$.status": status}})
     elif status == "CANCELED":
         # do something else, maybe reset to pending?
-        runtime_collection.update_one(run_query, {'$set': {"end": time, "status": status}})
+        runtime_collection.update_one(run_query, {'$set': {"game_data.$.start": None, "game_data.$.status": "PENDING"}})
+
+
+def check_if_run_complete(run_id, time):
+    run_attributes = fetch_rdw_run(run_id)
+    is_complete = all([game["status"] == "COMPLETE" for game in run_attributes["game_data"]])
+    total_time_for_run = "IN-PROGRESS"
+    if is_complete:
+        update_rdw_run(run_id, "COMPLETE", time)
+        total_time_for_run = time - run_attributes["start"]
+    return is_complete, total_time_for_run

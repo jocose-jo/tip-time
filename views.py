@@ -1,6 +1,8 @@
 from discord import ComponentType
 import discord
 import datetime
+
+import db
 from db import fetch_rdw_run_or_create, update_rdw_game
 
 
@@ -22,13 +24,9 @@ class GameView(discord.ui.View):
         super().__init__(timeout=None)
         self.run_attributes = fetch_rdw_run_or_create(run_id, users, datetime.datetime.now())
 
-        if any([game["status"] == "IN-PROGRESS" for game in self.run_attributes["game_data"]]): # if run has game in progress, show start and stop
-            game_attributes = next(game for game in self.run_attributes["game_data"] if game["status"] == "IN-PROGRESS")
-
-        else:
-            # populate view with buttons fetched from db
-            for game in self.run_attributes["game_data"]:
-                self.add_item(GameButton(self.run_attributes["_id"], game))
+        # populate view with buttons fetched from db
+        for game in self.run_attributes["game_data"]:
+            self.add_item(GameButton(self.run_attributes["_id"], game))
 
 
 class GameButton(discord.ui.Button):
@@ -51,26 +49,23 @@ class GameButton(discord.ui.Button):
             await interaction.response.send_message(message, view=StartView(game_attributes))
 
 
-class CustomButton(discord.ui.Button):
-    def __init__(self, label, callback_func):
-        super().__init__(label=label, style=discord.ButtonStyle.secondary, row=0)
-
-
 class StartView(discord.ui.View):
     def __init__(self, attributes):
         super().__init__()
         self.attributes = attributes
 
     @discord.ui.button(label="Finished!", row=0, style=discord.ButtonStyle.primary, emoji="✅")
-    async def first_button_callback(self, button, interaction):
+    async def finish_button_callback(self, button, interaction):
         end_time = datetime.datetime.now()
         total_time = end_time - self.attributes["start"]
         update_rdw_game(self.attributes["_id"], self.attributes["name"], "COMPLETE", end_time)
         await interaction.response.send_message(f"{self.attributes['name']} completed in {total_time}", view=GameView(run_id=self.attributes["_id"]))
-        # await interaction.followup.send(view=EndView())
+        is_run_complete, run_total_time = db.check_if_run_complete(self.attributes["_id"], end_time)
+        if is_run_complete:
+            await interaction.followup.send(f"AROUND THE WORLD COMPLETED! Total time: {run_total_time}")
 
     @discord.ui.button(label="Cancel!", row=0, style=discord.ButtonStyle.secondary, emoji="❌")
-    async def second_button_callback(self, button, interaction):
+    async def cancel_button_callback(self, button, interaction):
         button.label = "CANCELED"
         update_rdw_game(self.attributes["_id"], self.attributes["name"], "COMPLETE", datetime.datetime.now())
         await interaction.response.send_message(f"{self.attributes['name']} has been canceled")
