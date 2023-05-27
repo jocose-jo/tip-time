@@ -1,4 +1,5 @@
 from discord import ComponentType
+from pytz import timezone
 import discord
 import datetime
 
@@ -46,7 +47,7 @@ class GameButton(discord.ui.Button):
             game_attributes = {"_id": self.id, "name": self.name, "status": self.status, "start": datetime.datetime.now(), "end": self.end}
             was_updated, current_status = update_rdw_game(self.id, self.name, "IN-PROGRESS", datetime.datetime.now())
             if was_updated:
-                message = f"Current Game: {self.name} - started at: {game_attributes['start'].strftime('%I:%M %p')}"
+                message = f"Current Game: {self.name} - started at: {game_attributes['start'].astimezone(timezone('US/Pacific')).strftime('%I:%M %p')}"
                 await interaction.response.send_message(message, view=StartView(game_attributes))
             else:
                 await interaction.response.send_message(f"Game is {current_status}")
