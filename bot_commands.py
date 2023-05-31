@@ -1,4 +1,5 @@
 from discord.ext import commands
+from formatting import format_users, format_date
 from views import SelectView
 import discord
 import db
@@ -69,3 +70,13 @@ def add_bot_commands(client):
     @client.command(name="start", description="Ask the bot to start around the world")
     async def start_around_the_world(ctx):
         await ctx.channel.send("Start around the world?", view=SelectView())
+
+    @client.command(name="fastest", description="Fastest around the world run, and those who completed it.")
+    async def fetch_fastest_rdw_run(ctx):
+        query_results = db.fetch_fastest_rdw_runs()
+        fastest_rdw_runs = [doc for doc in query_results]
+        fastest = fastest_rdw_runs[0]["fastest_run"]
+        users = format_users(fastest["users"])
+        end_time, total_time = format_date(fastest["end"]), fastest["total_time"].strftime("%H:%M:%S.%f")
+        message = f"The fastest Around the World run was completed {end_time} by {users} in {total_time}"
+        await ctx.channel.send(f"{message}")
