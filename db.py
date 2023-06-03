@@ -27,10 +27,32 @@ def fetch_all_users():
 def save_new_user(user):
     user_query = {"_id": user.id}
     if user_collection.count_documents(user_query) == 0:
-        post = {"_id": user.id, "name": "Jojo Bot"}
-        user_collection.insert_one(post)
-        return True
+        post = {"_id": user.id, "name": user.name, "strikes": 0}
+        response = user_collection.insert_one(post)
+        return response.inserted_id
     return False
+
+
+def fetch_user(user_id):
+    user_query = {"_id": user_id}
+    return user_collection.find_one(user_query)
+
+
+def find_or_create_user(user):
+    user_id = user.id
+    user_query = {"_id": user_id}
+    if user_collection.count_documents(user_query) == 0:
+        user_id = save_new_user(user)
+    user = fetch_user(user_id)
+    return user
+
+
+def update_user_strikes(user, plus_minus):
+    user_id, current_strikes = user["_id"], user["strikes"]
+    new_value = current_strikes + 1 if plus_minus == "plus" else max(current_strikes - 1, 0)
+    user_query = {"_id": user_id}
+    response = user_collection.update_one(user_query, {'$set': {'strikes': new_value}})
+    return response.acknowledged, new_value
 
 
 def add_new_rdw_game(game_name):

@@ -38,6 +38,31 @@ def add_bot_commands(client):
             response = 'You are already added!'
         await ctx.channel.send(response)
 
+    @client.command(name="strikes?")
+    async def fetch_user_strikes(ctx, user: discord.User = None):
+        if not user:
+            user = ctx.author
+        fetched_user = db.find_or_create_user(user)
+        message = f"<@{fetched_user['_id']}> has {fetched_user['strikes']} strike(s)"
+
+        await ctx.channel.send(message)
+
+    @client.command(name="strike")
+    async def add_strike(ctx, user: discord.User):
+        fetched_user = db.find_or_create_user(user)
+        updated, new_value = db.update_user_strikes(fetched_user, "plus")
+        message = f"<@{fetched_user['_id']}> now has {new_value} strike(s)"
+
+        await ctx.channel.send(message)
+
+    @client.command(name="unstrike")
+    async def add_strike(ctx, user: discord.User):
+        fetched_user = db.find_or_create_user(user)
+        updated, new_value = db.update_user_strikes(fetched_user, "subtract")
+        message = f"<@{fetched_user['_id']}> now has {new_value} strike(s)"
+
+        await ctx.channel.send(message)
+
     @client.command(name="addgame")
     async def add_new_game(ctx, *args):
         game_name = " ".join(args)
