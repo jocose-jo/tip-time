@@ -30,6 +30,12 @@ def add_bot_commands(client):
         arguments = ', '.join(args)
         await ctx.channel.send(f'{len(args)} arguments: {arguments}')
 
+    @client.command(name='monkey')
+    async def print_monkey(ctx):
+        with open("./monkey.txt") as monkey_file:
+            monkey = ''.join([line for line in monkey_file])
+        await ctx.channel.send(f'```{monkey}```')
+
     @client.command(name='addme')
     async def add_user(ctx):
         if db.save_new_user(ctx.author):
