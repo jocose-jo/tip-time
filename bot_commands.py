@@ -54,17 +54,17 @@ def add_bot_commands(client):
         await ctx.channel.send(message)
 
     @client.command(name="strike")
-    async def add_strike(ctx, user: discord.User):
+    async def add_strike(ctx, user: discord.User, quantity: int = 1):
         fetched_user = db.find_or_create_user(user)
-        updated, new_value = db.update_user_strikes(fetched_user, "plus")
+        updated, new_value = db.update_user_strikes(fetched_user, "plus", quantity)
         message = f"<@{fetched_user['_id']}> now has {new_value} strike(s)"
 
         await ctx.channel.send(message)
 
     @client.command(name="unstrike")
-    async def add_strike(ctx, user: discord.User):
+    async def remove_strike(ctx, user: discord.User, quantity: int = 1):
         fetched_user = db.find_or_create_user(user)
-        updated, new_value = db.update_user_strikes(fetched_user, "subtract")
+        updated, new_value = db.update_user_strikes(fetched_user, "subtract", quantity)
         message = f"<@{fetched_user['_id']}> now has {new_value} strike(s)"
 
         await ctx.channel.send(message)
