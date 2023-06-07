@@ -1,6 +1,7 @@
 from discord.ext import commands
 from formatting import format_users, format_date
 from views import SelectView
+from horse_race import get_random_unique_horses
 import discord
 import db
 
@@ -32,7 +33,7 @@ def add_bot_commands(client):
 
     @client.command(name='monkey')
     async def print_monkey(ctx):
-        with open("./monkey.txt") as monkey_file:
+        with open("assets/monkey.txt") as monkey_file:
             monkey = ''.join([line for line in monkey_file])
         await ctx.channel.send(f'```{monkey}```')
 
@@ -114,5 +115,6 @@ def add_bot_commands(client):
 
     @client.command(name="horserace", description="Start a horse race")
     async def start_horse_race(ctx, *args):
-        horses = ", ".join(args)
-        await ctx.channel.send(f"Horses are {horses}")
+        horses = [f"<a:{horse['name']}:{horse['id']}>" for horse in get_random_unique_horses(len(args) - 1)]
+
+        await ctx.channel.send("\n".join(horses))
