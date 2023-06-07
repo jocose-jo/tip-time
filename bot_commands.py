@@ -111,3 +111,8 @@ def add_bot_commands(client):
         end_time, total_time = format_date(fastest["end"]), fastest["total_time"].strftime("%H:%M:%S.%f")
         message = f"The fastest Around the World run was completed {end_time} by {users} in {total_time}"
         await ctx.channel.send(f"{message}")
+
+    @client.command(name="horserace", description="Start a horse race")
+    async def start_horse_race(ctx, *args):
+        horses = ", ".join(args)
+        await ctx.channel.send(f"Horses are {horses}")
