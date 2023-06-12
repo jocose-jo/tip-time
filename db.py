@@ -47,9 +47,9 @@ def find_or_create_user(user):
     return user
 
 
-def update_user_strikes(user, plus_minus):
+def update_user_strikes(user, plus_minus, quantity):
     user_id, current_strikes = user["_id"], user["strikes"]
-    new_value = current_strikes + 1 if plus_minus == "plus" else max(current_strikes - 1, 0)
+    new_value = current_strikes + quantity if plus_minus == "plus" else max(current_strikes - quantity, 0)
     user_query = {"_id": user_id}
     response = user_collection.update_one(user_query, {'$set': {'strikes': new_value}})
     return response.acknowledged, new_value
