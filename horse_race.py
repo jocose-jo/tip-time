@@ -15,3 +15,7 @@ def get_random_unique_horses(amount):
     horses = [{"name": name, "id": horse_id} for name, horse_id in horse_map.items()]
     return random.sample(horses, amount)
 
+def trim_name(name: str, length: int):
+    if len(name) < length:
+        return name.ljust(length)
+    return name[0:length]
