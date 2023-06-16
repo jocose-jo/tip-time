@@ -1,8 +1,11 @@
 from discord.ext import commands
 from formatting import format_users, format_date
 from views import SelectView
+from horse_race import get_random_unique_horses, trim_name
 import discord
 import db
+import asyncio
+import random
 
 
 def init_client(prefix='$'):
@@ -32,7 +35,7 @@ def add_bot_commands(client):
 
     @client.command(name='monkey')
     async def print_monkey(ctx):
-        with open("./monkey.txt") as monkey_file:
+        with open("assets/monkey.txt") as monkey_file:
             monkey = ''.join([line for line in monkey_file])
         await ctx.channel.send(f'```{monkey}```')
 
@@ -111,3 +114,29 @@ def add_bot_commands(client):
         end_time, total_time = format_date(fastest["end"]), fastest["total_time"].strftime("%H:%M:%S.%f")
         message = f"The fastest Around the World run was completed {end_time} by {users} in {total_time}"
         await ctx.channel.send(f"{message}")
+
+    @client.command(name="horserace", description="Start a horse race")
+    async def start_horse_race(ctx, *args):
+        NAME_LENGTH = 6
+        MAX_SCORE = 30
+        
+        horses = [f"<a:{horse['name']}:{horse['id']}>" for horse in get_random_unique_horses(len(args))]
+        names = [trim_name(name, NAME_LENGTH) for name in args]
+
+        # initialize score
+        score = [0 for _ in horses]
+        # format 'scoreboard'
+        horse_race = [f'`{names[i]}|{"="*score[i]}`{horse}`{" "*(MAX_SCORE - score[i])}|`' for i,horse in enumerate(horses)]
+        message = await ctx.channel.send('\n'.join(horse_race) + '\n LETS GOOO!')
+        await asyncio.sleep(0.5)
+
+        while max(score) < MAX_SCORE:
+            # increment random horse
+            randomHorse = random.randint(0, len(horses) - 1)
+            score[randomHorse] += 1
+
+            # update 'scoreboard'
+            horse_race = [f'`{names[i]}|{"="*score[i]}`{horse}`{" "*(MAX_SCORE - score[i])}|` {"Winner!" if MAX_SCORE == score[i] else ""}' for i, horse in enumerate(horses)]
+            await message.edit('\n'.join(horse_race) + '\n LETS GOOO!')
+
+            await asyncio.sleep(0.5)
