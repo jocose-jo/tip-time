@@ -11,9 +11,10 @@ horse_map = {
 }
 
 
-def get_random_unique_horses(amount):
-    horses = [{"name": name, "id": horse_id} for name, horse_id in horse_map.items()]
-    return random.sample(horses, amount)
+def get_random_unique_horses(bot_emojis, amount):
+    filtered_horses = [{"name": emoji.name, "id": emoji.id} for emoji in bot_emojis if emoji.id in horse_map.values()]
+    return random.sample(filtered_horses, amount)
+
 
 def trim_name(name: str, length: int):
     if len(name) < length:

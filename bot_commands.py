@@ -120,7 +120,7 @@ def add_bot_commands(client):
         NAME_LENGTH = 6
         MAX_SCORE = 30
         
-        horses = [f"<a:{horse['name']}:{horse['id']}>" for horse in get_random_unique_horses(len(args))]
+        horses = [f"<a:{horse['name']}:{horse['id']}>" for horse in get_random_unique_horses(ctx.bot.emojis, len(args))]
         names = [trim_name(name, NAME_LENGTH) for name in args]
 
         # initialize score
@@ -132,8 +132,8 @@ def add_bot_commands(client):
 
         while max(score) < MAX_SCORE:
             # increment random horse
-            randomHorse = random.randint(0, len(horses) - 1)
-            score[randomHorse] += 1
+            random_horse = random.randint(0, len(horses) - 1)
+            score[random_horse] += 1
 
             # update 'scoreboard'
             horse_race = [f'`{names[i]}|{"="*score[i]}`{horse}`{" "*(MAX_SCORE - score[i])}|` {"Winner!" if MAX_SCORE == score[i] else ""}' for i, horse in enumerate(horses)]
