@@ -25,6 +25,11 @@ def add_bot_commands(client):
         if "dale" in message.content.lower():
             await message.channel.send("DALE!")
 
+        if "crazy" in message.content.lower():
+            out_str = "Crazy?\nI was crazy once\nThey locked me in a room\nA rubber room with rats\n" \
+                      "and rats make me crazy.\nCrazy?"
+            await message.channel.send(out_str)
+
         await client.process_commands(message)
 
     @client.command()
