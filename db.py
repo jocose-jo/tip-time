@@ -1,6 +1,7 @@
+import pymongo
 from pymongo import MongoClient
 from env import MONGO_CONNECTION_URL
-from formatting import format_time_delta
+from formatting import format_time_delta, calculate_in_game_time
 from enum import Enum
 
 
@@ -97,9 +98,8 @@ def fetch_rdw_run(run_id):
     return runtime_collection.find_one(run_query)
 
 
-def fetch_fastest_rdw_runs(amount=1):
-    # TODO: allow for fetching custom amounts of collections ordered by total_time asc
-    return runtime_collection.aggregate([{"$sort": {"total_time": 1}}, {"$group": {"_id": {}, "fastest_run": {'$first': '$$ROOT'}}}])
+def fetch_fastest_rdw_runs(amount=10):
+    return runtime_collection.find({}).sort("in_game_time", pymongo.ASCENDING).limit(amount)
 
 
 def fetch_rdw_run_or_create(run_id, users, start_time):
@@ -112,7 +112,7 @@ def fetch_rdw_run_or_create(run_id, users, start_time):
 def update_rdw_run(run_id, status, time, total_time):
     run_query = {"_id": run_id}
     if status == "COMPLETE":
-        runtime_collection.update_one(run_query, {'$set': {"end": time, "status": status, "total_time": total_time}})
+        runtime_collection.update_one(run_query, {'$set': {"end": time, "status": status, "total_time": total_time[0], "in_game_time": total_time[1]}})
     elif status == "CANCELED":
         # do something else, maybe reset to pending?
         runtime_collection.update_one(run_query, {'$set': {"start": None, "status": status}})
@@ -148,5 +148,6 @@ def check_if_run_complete(run_id, time):
         return already_complete, run_attributes["end"]
     if is_complete:
         total_time_for_run = time - run_attributes["start"]
-        update_rdw_run(run_id, "COMPLETE", time, format_time_delta(total_time_for_run))
+        total_in_game_time = calculate_in_game_time(run_attributes["game_data"])
+        update_rdw_run(run_id, "COMPLETE", time, (format_time_delta(total_time_for_run), format_time_delta(total_in_game_time)))
     return is_complete, total_time_for_run

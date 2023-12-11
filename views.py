@@ -17,6 +17,7 @@ class SelectView(discord.ui.View):
     async def select_callback(self, select, interaction): # the function called when the user is done selecting options
         await interaction.response.send_message(f"{interaction.user.mention} selects {select.values[0].mention} and {select.values[1].mention} to start AROUND THE WORLD!")
         reduced_users = [{"id": user.id, "name": user.name} for user in select.values]
+        reduced_users.append({"id": interaction.user.id, "name": interaction.user.name})
         await interaction.followup.send("Select Game", view=GameView(users=reduced_users))
 
 
