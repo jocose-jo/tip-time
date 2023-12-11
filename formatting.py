@@ -1,4 +1,6 @@
-import datetime
+import datetime as dt
+from datetime import datetime
+from table2ascii import table2ascii as t2a, PresetStyle
 
 
 def format_users(users):
@@ -15,4 +17,15 @@ def format_date(date):
 
 
 def format_time_delta(time):
-    return datetime.datetime.strptime(str(time), "%H:%M:%S.%f")
+    return datetime.strptime(str(time), "%H:%M:%S.%f")
+
+
+def calculate_in_game_time(game_data):
+    document_running_total = dt.timedelta(0)
+    for game in game_data:
+        document_running_total += (game["end"] - game["start"])
+    return document_running_total
+
+
+def convert_to_table(header, data):
+    pass

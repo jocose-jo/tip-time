@@ -110,11 +110,12 @@ def add_bot_commands(client):
     async def start_around_the_world(ctx):
         await ctx.channel.send("Start around the world?", view=SelectView())
 
-    @client.command(name="fastest", description="Fastest around the world run, and those who completed it.")
+    @client.command(name="fastest", description="Fastest around the world runs, and those who completed it.")
     async def fetch_fastest_rdw_run(ctx):
         query_results = db.fetch_fastest_rdw_runs()
         fastest_rdw_runs = [doc for doc in query_results]
-        fastest = fastest_rdw_runs[0]["fastest_run"]
+        print(fastest_rdw_runs)
+        fastest = fastest_rdw_runs[0]
         users = format_users(fastest["users"])
         end_time, total_time = format_date(fastest["end"]), fastest["total_time"].strftime("%H:%M:%S.%f")
         message = f"The fastest Around the World run was completed {end_time} by {users} in {total_time}"
