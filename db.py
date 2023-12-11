@@ -99,8 +99,6 @@ def fetch_rdw_run(run_id):
 
 
 def fetch_fastest_rdw_runs(amount=10):
-    # TODO: allow for fetching custom amounts of collections ordered by total_time asc
-    # return runtime_collection.aggregate([{"$sort": {"total_time": 1}}, {"$group": {"_id": {}, "fastest_run": {'$first': '$$ROOT'}}}])
     return runtime_collection.find({}).sort("in_game_time", pymongo.ASCENDING).limit(amount)
 
 

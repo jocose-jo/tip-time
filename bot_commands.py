@@ -1,5 +1,5 @@
 from discord.ext import commands
-from formatting import format_users, format_date
+from formatting import format_users, format_date_time, convert_to_table
 from views import SelectView
 from horse_race import get_random_unique_horses, trim_name
 import discord
@@ -110,16 +110,14 @@ def add_bot_commands(client):
     async def start_around_the_world(ctx):
         await ctx.channel.send("Start around the world?", view=SelectView())
 
-    @client.command(name="fastest", description="Fastest around the world runs, and those who completed it.")
+    @client.command(name="leaderboard", description="Fastest around the world runs, and those who completed it.")
     async def fetch_fastest_rdw_run(ctx):
         query_results = db.fetch_fastest_rdw_runs()
         fastest_rdw_runs = [doc for doc in query_results]
-        print(fastest_rdw_runs)
-        fastest = fastest_rdw_runs[0]
-        users = format_users(fastest["users"])
-        end_time, total_time = format_date(fastest["end"]), fastest["total_time"].strftime("%H:%M:%S.%f")
-        message = f"The fastest Around the World run was completed {end_time} by {users} in {total_time}"
-        await ctx.channel.send(f"{message}")
+        formatted_results = [[idx + 1, format_users(run["users"]), format_date_time(run["in_game_time"]),
+                              format_date_time(run["total_time"])] for idx, run in enumerate(fastest_rdw_runs)]
+        leaderboard_table = convert_to_table(["Rank", "Team", "In-Game Time", "Total Time"], formatted_results)
+        await ctx.channel.send(f'```\n{leaderboard_table}\n```')
 
     @client.command(name="horserace", description="Start a horse race")
     async def start_horse_race(ctx, *args):

@@ -8,7 +8,7 @@ def format_users(users):
     for idx, user in enumerate(users):
         if idx == len(users) - 1:
             output_str += ", and"
-        output_str += f" <@{user['id']}>"
+        output_str += f" {user['name']}"
     return output_str
 
 
@@ -17,7 +17,14 @@ def format_date(date):
 
 
 def format_time_delta(time):
-    return datetime.strptime(str(time), "%H:%M:%S.%f")
+    new_dt = datetime.strptime(str(time), "%H:%M:%S.%f")
+    return new_dt.strftime("%H:%M:%S.%f")
+
+
+# this function while nearly identical to format_time_delta returns a string truncated of ms
+def format_date_time(date):
+    new_dt = datetime.strptime(date, "%H:%M:%S.%f")
+    return new_dt.strftime("%H:%M:%S")
 
 
 def calculate_in_game_time(game_data):
@@ -28,4 +35,8 @@ def calculate_in_game_time(game_data):
 
 
 def convert_to_table(header, data):
-    pass
+    return t2a(
+        header=header,
+        body=data,
+        style=PresetStyle.thin_compact
+    )
