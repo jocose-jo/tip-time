@@ -32,6 +32,11 @@ def add_bot_commands(client):
 
         await client.process_commands(message)
 
+    @client.check
+    async def blacklist(ctx):
+        blacklisted = [189584941384859648]
+        return ctx.author.id not in blacklisted
+
     @client.command()
     async def test(ctx, *args):
         print("testing...")
