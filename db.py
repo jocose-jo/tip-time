@@ -99,7 +99,7 @@ def fetch_rdw_run(run_id):
 
 
 def fetch_fastest_rdw_runs(amount=10):
-    return runtime_collection.find({}).sort("in_game_time", pymongo.ASCENDING).limit(amount)
+    return runtime_collection.find({"status": "COMPLETE"}).sort("total_time", pymongo.ASCENDING).limit(amount)
 
 
 def fetch_rdw_run_or_create(run_id, users, start_time):

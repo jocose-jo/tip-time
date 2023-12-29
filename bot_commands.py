@@ -114,9 +114,9 @@ def add_bot_commands(client):
     async def fetch_fastest_rdw_run(ctx):
         query_results = db.fetch_fastest_rdw_runs()
         fastest_rdw_runs = [doc for doc in query_results]
-        formatted_results = [[idx + 1, format_users(run["users"]), format_date_time(run["in_game_time"]),
-                              format_date_time(run["total_time"])] for idx, run in enumerate(fastest_rdw_runs)]
-        leaderboard_table = convert_to_table(["Rank", "Team", "In-Game Time", "Total Time"], formatted_results)
+        formatted_results = [[idx + 1, format_users(run["users"]), format_date_time(run["total_time"]),
+                              format_date_time(run["in_game_time"])] for idx, run in enumerate(fastest_rdw_runs)]
+        leaderboard_table = convert_to_table(["Rank", "Team", "Total Time", "In-Game Time"], formatted_results)
         await ctx.channel.send(f'```\n{leaderboard_table}\n```')
 
     @client.command(name="horserace", description="Start a horse race")
