@@ -149,3 +149,8 @@ def add_bot_commands(client):
             await message.edit('\n'.join(horse_race) + '\n LETS GOOO!')
 
             await asyncio.sleep(0.5)
+
+    @client.command(name="bet", description="Start a new bet")
+    async def start_bet(ctx, *args):
+        response = " ".join(args)
+        await ctx.channel.send(response)
