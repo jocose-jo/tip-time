@@ -1,6 +1,6 @@
 from discord.ext import commands
 from formatting import format_users, format_date_time, convert_to_table
-from views import SelectView
+from views import SelectView, CreateBetButton
 from horse_race import get_random_unique_horses, trim_name
 import discord
 import db
@@ -34,7 +34,7 @@ def add_bot_commands(client):
 
     @client.check
     async def blacklist(ctx):
-        blacklisted = [189584941384859648]
+        blacklisted = []
         return ctx.author.id not in blacklisted
 
     @client.command()
@@ -128,7 +128,7 @@ def add_bot_commands(client):
     async def start_horse_race(ctx, *args):
         NAME_LENGTH = 6
         MAX_SCORE = 30
-        
+
         horses = [f"<a:{horse['name']}:{horse['id']}>" for horse in get_random_unique_horses(ctx.bot.emojis, len(args))]
         names = [trim_name(name, NAME_LENGTH) for name in args]
 
@@ -149,3 +149,40 @@ def add_bot_commands(client):
             await message.edit('\n'.join(horse_race) + '\n LETS GOOO!')
 
             await asyncio.sleep(0.5)
+
+    @client.command(name="createbet", description="Create a new bet")
+    async def create_bet(ctx):
+        view = discord.ui.View()
+        view.add_item(CreateBetButton())
+        await ctx.channel.send("Click the button to create a new bet:", view=view)
+
+    @client.command(name="balance", description="Check your coin balance")
+    async def check_balance(ctx):
+        coins = db.get_user_coins(ctx.author.id)
+        await ctx.channel.send(f"<@{ctx.author.id}> has **{coins}** coins")
+
+    @client.command(name="givecoins", description="Admin: give coins to a user")
+    async def give_coins(ctx, user: discord.User, amount: int):
+        print(ctx.author.id)
+        admin_ids = [138756623186264065]
+        if ctx.author.id not in admin_ids:
+            await ctx.channel.send("You don't have permission to use this command!")
+            return
+
+        if amount < 0:
+            await ctx.channel.send("Amount must be positive!")
+            return
+
+        db.update_user_coins(user.id, amount)
+        new_balance = db.get_user_coins(user.id)
+        await ctx.channel.send(f"Gave {amount} coins to <@{user.id}>. New balance: {new_balance}")
+
+    @client.command(name="bets", description="List all open bets")
+    async def list_open_bets(ctx):
+        open_bets = list(db.fetch_open_bets())
+        if not open_bets:
+            await ctx.channel.send("No open bets!")
+            return
+
+        bets_list = "\n".join([f"{idx+1}. {bet['description']}" for idx, bet in enumerate(open_bets)])
+        await ctx.channel.send(f"**Open Bets:**\n{bets_list}")

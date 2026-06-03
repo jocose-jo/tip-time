@@ -40,3 +40,13 @@ def convert_to_table(header, data):
         body=data,
         style=PresetStyle.thin_compact
     )
+
+
+def format_bet_summary(bet):
+    outcomes_summary = []
+    for outcome in bet["outcomes"]:
+        wagers = [w for w in bet["bets"] if w["outcome"] == outcome]
+        total = sum(w["amount"] for w in wagers)
+        bettor_names = ", ".join([w["username"] for w in wagers]) if wagers else "No bets"
+        outcomes_summary.append(f"{outcome}: {total} coins ({bettor_names})")
+    return "\n".join(outcomes_summary)
