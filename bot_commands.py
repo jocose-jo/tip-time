@@ -163,7 +163,6 @@ def add_bot_commands(client):
 
     @client.command(name="givecoins", description="Admin: give coins to a user")
     async def give_coins(ctx, user: discord.User, amount: int):
-        print(ctx.author.id)
         admin_ids = [138756623186264065]
         if ctx.author.id not in admin_ids:
             await ctx.channel.send("You don't have permission to use this command!")
