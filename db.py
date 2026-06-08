@@ -83,6 +83,7 @@ def fetch_rdw_games():
 def start_rdw_run(users, start_time):
     rdw_games = fetch_rdw_games()
     new_rdw_run = {
+        "_id": int(datetime.now().timestamp()),
         "users": users,
         "status": "IN-PROGRESS",
         "start": start_time,
@@ -91,7 +92,6 @@ def start_rdw_run(users, start_time):
         "game_data": [{"name": game, "start": None, "end": None, "status": "PENDING"} for game in rdw_games]
     }
     response = runtime_collection.insert_one(new_rdw_run)
-    new_rdw_run["_id"] = response.inserted_id
     return new_rdw_run
 
 
