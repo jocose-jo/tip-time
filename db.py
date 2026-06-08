@@ -3,6 +3,7 @@ from pymongo import MongoClient
 from env import MONGO_CONNECTION_URL
 from formatting import format_time_delta, calculate_in_game_time
 from enum import Enum
+from datetime import datetime
 
 
 cluster = MongoClient(MONGO_CONNECTION_URL)
@@ -10,6 +11,7 @@ db = cluster["TipTimeTest"]
 runtime_collection = db["RunTimes"]
 user_collection = db["Users"]
 rdw_game_collection = db["RDWGames"]
+bets_collection = db["Bets"]
 
 
 class GameStatus(Enum):
@@ -28,7 +30,7 @@ def fetch_all_users():
 def save_new_user(user):
     user_query = {"_id": user.id}
     if user_collection.count_documents(user_query) == 0:
-        post = {"_id": user.id, "name": user.name, "strikes": 0}
+        post = {"_id": user.id, "name": user.name, "strikes": 0, "coins": 500}
         response = user_collection.insert_one(post)
         return response.inserted_id
     return False
@@ -81,6 +83,7 @@ def fetch_rdw_games():
 def start_rdw_run(users, start_time):
     rdw_games = fetch_rdw_games()
     new_rdw_run = {
+        "_id": int(datetime.now().timestamp()),
         "users": users,
         "status": "IN-PROGRESS",
         "start": start_time,
@@ -89,7 +92,6 @@ def start_rdw_run(users, start_time):
         "game_data": [{"name": game, "start": None, "end": None, "status": "PENDING"} for game in rdw_games]
     }
     response = runtime_collection.insert_one(new_rdw_run)
-    new_rdw_run["_id"] = response.inserted_id
     return new_rdw_run
 
 
@@ -151,3 +153,68 @@ def check_if_run_complete(run_id, time):
         total_in_game_time = calculate_in_game_time(run_attributes["game_data"])
         update_rdw_run(run_id, "COMPLETE", time, (format_time_delta(total_time_for_run), format_time_delta(total_in_game_time)))
     return is_complete, total_time_for_run
+
+
+def get_user_coins(user_id):
+    user = user_collection.find_one({"_id": user_id})
+    if user is None:
+        return 500
+    return user.get("coins", 500)
+
+
+def update_user_coins(user_id, delta):
+    user_query = {"_id": user_id}
+    user = user_collection.find_one(user_query)
+    if user is None:
+        current_coins = 500
+    else:
+        current_coins = user.get("coins", 500)
+    new_coins = max(current_coins + delta, 0)
+    user_collection.update_one(user_query, {'$set': {'coins': new_coins}}, upsert=True)
+    return new_coins
+
+
+def create_bet(creator_id, channel_id, description, outcomes):
+    new_bet = {
+        "creator_id": creator_id,
+        "channel_id": channel_id,
+        "message_id": None,
+        "description": description,
+        "outcomes": outcomes,
+        "status": "OPEN",
+        "bets": [],
+        "winner_outcome": None,
+        "created_at": datetime.now()
+    }
+    response = bets_collection.insert_one(new_bet)
+    new_bet["_id"] = response.inserted_id
+    return new_bet
+
+
+def fetch_bet(bet_id):
+    from bson.objectid import ObjectId
+    return bets_collection.find_one({"_id": ObjectId(bet_id)})
+
+
+def fetch_open_bets():
+    return bets_collection.find({"status": "OPEN"})
+
+
+def add_wager_to_bet(bet_id, user_id, username, outcome, amount):
+    from bson.objectid import ObjectId
+    bet_query = {"_id": ObjectId(bet_id)}
+    wager = {"user_id": user_id, "username": username, "outcome": outcome, "amount": amount}
+    bets_collection.update_one(bet_query, {'$push': {'bets': wager}})
+
+
+def update_bet_message_id(bet_id, message_id):
+    from bson.objectid import ObjectId
+    bet_query = {"_id": ObjectId(bet_id)}
+    bets_collection.update_one(bet_query, {'$set': {'message_id': message_id}})
+
+
+def settle_bet(bet_id, winner_outcome):
+    from bson.objectid import ObjectId
+    bet_query = {"_id": ObjectId(bet_id)}
+    bets_collection.update_one(bet_query, {'$set': {'status': 'SETTLED', 'winner_outcome': winner_outcome}})
+    return bets_collection.find_one(bet_query)
