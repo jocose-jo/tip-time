@@ -5,7 +5,7 @@ import datetime
 
 import db
 from db import fetch_rdw_run_or_create, update_rdw_game
-from formatting import format_bet_summary
+from formatting import format_bet_summary, format_duration
 
 
 class SelectView(discord.ui.View):
@@ -16,10 +16,11 @@ class SelectView(discord.ui.View):
         max_values=2,
     )
     async def callback(self, interaction: discord.Interaction, select): # the function called when the user is done selecting options
-        await interaction.response.send_message(f"{interaction.user.mention} selects {select.values[0].mention} and {select.values[1].mention} to start AROUND THE WORLD!")
+        await interaction.channel.send(f"{interaction.user.mention} selects {select.values[0].mention} and {select.values[1].mention} to start AROUND THE WORLD!")
         reduced_users = [{"id": user.id, "name": user.name} for user in select.values]
         reduced_users.append({"id": interaction.user.id, "name": interaction.user.name})
-        await interaction.followup.send("Select Game", view=GameView(users=reduced_users))
+        await interaction.channel.send("Select Game", view=GameView(users=reduced_users))
+        await interaction.message.delete()
 
 
 class GameView(discord.ui.View):
@@ -53,7 +54,8 @@ class GameButton(discord.ui.Button):
             was_updated, current_status = update_rdw_game(self.run_id, self.name, "IN-PROGRESS", datetime.datetime.now())
             if was_updated:
                 message = f"Current Game: {self.name} - started at: {game_attributes['start'].astimezone(timezone('US/Pacific')).strftime('%I:%M %p')}"
-                await interaction.response.send_message(message, view=StartView(game_attributes))
+                await interaction.channel.send(message, view=StartView(game_attributes))
+                await interaction.message.delete()
             else:
                 await interaction.response.send_message(f"Game is {current_status}")
 
@@ -70,10 +72,12 @@ class StartView(discord.ui.View):
         total_time = end_time - self.attributes["start"]
         was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "COMPLETE", end_time)
         if was_updated:
-            await interaction.response.send_message(f"{self.attributes['name']} completed in {total_time}", view=GameView(run_id=self.attributes["_id"]))
+            game_view_message = await interaction.channel.send(f"{self.attributes['name']} completed in {format_duration(total_time)}", view=GameView(run_id=self.attributes["_id"]))
+            await interaction.message.delete()
             is_run_complete, run_total_time = db.check_if_run_complete(self.attributes["_id"], end_time)
             if is_run_complete:
-                await interaction.followup.send(f"AROUND THE WORLD COMPLETED! Total time: {run_total_time}")
+                await interaction.channel.send(f"AROUND THE WORLD COMPLETED! Total time: {format_duration(run_total_time)}")
+                await game_view_message.delete()
         else:
             await interaction.response.send_message(f"Game is {current_status}")
 
@@ -83,8 +87,9 @@ class StartView(discord.ui.View):
         button.label = "CANCELED"
         was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "CANCELED", datetime.datetime.now())
         if was_updated:
-            await interaction.response.send_message(f"{self.attributes['name']} has been canceled")
-            await interaction.followup.send(view=GameView(run_id=self.attributes["_id"]))
+            await interaction.channel.send(f"{self.attributes['name']} has been canceled")
+            await interaction.channel.send(view=GameView(run_id=self.attributes["_id"]))
+            await interaction.message.delete()
         else:
             await interaction.response.send_message(f"Game is {current_status}")
 
