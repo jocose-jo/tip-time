@@ -4,7 +4,7 @@ import discord
 import datetime
 
 import db
-from db import fetch_rdw_run_or_create, update_rdw_game
+from db import fetch_rdw_run_or_create, update_rdw_game, fetch_rdw_run
 from formatting import format_bet_summary, format_duration
 
 
@@ -76,7 +76,13 @@ class StartView(discord.ui.View):
             await interaction.message.delete()
             is_run_complete, run_total_time = db.check_if_run_complete(self.attributes["_id"], end_time)
             if is_run_complete:
-                await interaction.channel.send(f"AROUND THE WORLD COMPLETED! Total time: {format_duration(run_total_time)}")
+                run = fetch_rdw_run(self.attributes["_id"])
+                splits_message = f"AROUND THE WORLD COMPLETED! Total time: {format_duration(run_total_time)}\n\n**Game Splits:**\n"
+                for game in run["game_data"]:
+                    if game["status"] == "COMPLETE":
+                        game_time = game["end"] - game["start"]
+                        splits_message += f"• {game['name']}: {format_duration(game_time)}\n"
+                await interaction.channel.send(splits_message)
                 await game_view_message.delete()
         else:
             await interaction.response.send_message(f"Game is {current_status}")
