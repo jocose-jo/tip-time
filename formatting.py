@@ -42,6 +42,28 @@ def convert_to_table(header, data):
     )
 
 
+def format_duration(timedelta_obj):
+    total_seconds = int(timedelta_obj.total_seconds())
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+
+    parts = []
+    if hours > 0:
+        parts.append(f"{hours} hr{'s' if hours != 1 else ''}")
+    if minutes > 0:
+        parts.append(f"{minutes} min{'s' if minutes != 1 else ''}")
+    if seconds > 0 or not parts:
+        parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+
+    if len(parts) == 1:
+        return parts[0]
+    elif len(parts) == 2:
+        return f"{parts[0]} and {parts[1]}"
+    else:
+        return f"{parts[0]} {parts[1]} and {parts[2]}"
+
+
 def format_bet_summary(bet):
     outcomes_summary = []
     for outcome in bet["outcomes"]:
