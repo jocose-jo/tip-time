@@ -9,17 +9,37 @@ from formatting import format_bet_summary, format_duration
 
 
 class SelectView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.selected_users = []
+
     @discord.ui.select(
-        cls= discord.ui.UserSelect,
-        placeholder="Select your partners",
+        cls=discord.ui.UserSelect,
+        placeholder="Select your 2 partners",
         min_values=2,
         max_values=2,
     )
-    async def callback(self, interaction: discord.Interaction, select): # the function called when the user is done selecting options
-        await interaction.channel.send(f"{interaction.user.mention} selects {select.values[0].mention} and {select.values[1].mention} to start AROUND THE WORLD!")
-        reduced_users = [{"id": user.id, "name": user.name} for user in select.values]
+    async def user_select(self, interaction: discord.Interaction, select: discord.ui.UserSelect):
+        self.selected_users = select.values
+        self.confirm_button.disabled = False
+        await interaction.response.defer()
+        await interaction.message.edit(view=self)
+
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green, disabled=True)
+    async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if len(self.selected_users) != 2:
+            await interaction.response.send_message("Please select exactly 2 partners!", ephemeral=True)
+            return
+
+        await interaction.channel.send(f"{interaction.user.mention} selects {self.selected_users[0].mention} and {self.selected_users[1].mention} to start AROUND THE WORLD!")
+        reduced_users = [{"id": user.id, "name": user.name} for user in self.selected_users]
         reduced_users.append({"id": interaction.user.id, "name": interaction.user.name})
         await interaction.channel.send("Select Game", view=GameView(users=reduced_users))
+        await interaction.message.delete()
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
+    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.channel.send("Selection canceled.", ephemeral=True)
         await interaction.message.delete()
 
 
