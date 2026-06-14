@@ -174,7 +174,7 @@ def add_bot_commands(client):
 
         db.update_user_coins(user.id, amount)
         new_balance = db.get_user_coins(user.id)
-        await ctx.channel.send(f"Gave {amount} coins to <@{user.id}>. New balance: {new_balance}")
+        await ctx.channel.send(f"Gave {amount} to <@{user.id}>. New balance: {new_balance}")
 
     @client.command(name="bets", description="List all open bets")
     async def list_open_bets(ctx):
