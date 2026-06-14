@@ -37,11 +37,6 @@ def add_bot_commands(client):
         blacklisted = []
         return ctx.author.id not in blacklisted
 
-    @client.command()
-    async def test(ctx, *args):
-        print("testing...")
-        arguments = ', '.join(args)
-        await ctx.channel.send(f'{len(args)} arguments: {arguments}')
 
     @client.command(name='monkey')
     async def print_monkey(ctx):
