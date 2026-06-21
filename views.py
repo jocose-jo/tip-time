@@ -125,12 +125,13 @@ class CreateBetButton(discord.ui.Button):
         super().__init__(label="Create Bet", style=discord.ButtonStyle.primary)
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(CreateBetModal())
+        await interaction.response.send_modal(CreateBetModal(interaction.message))
 
 
 class CreateBetModal(discord.ui.Modal):
-    def __init__(self):
+    def __init__(self, button_message=None):
         super().__init__(title="Create a Bet")
+        self.button_message = button_message
         self.add_item(discord.ui.TextInput(label="Bet Description", placeholder="e.g., Who wins the race?"))
         self.add_item(discord.ui.TextInput(label="Outcomes (comma-separated)", placeholder="e.g., Alice,Bob,Carol"))
 
@@ -151,6 +152,9 @@ class CreateBetModal(discord.ui.Modal):
         )
         message = await interaction.original_response()
         db.update_bet_message_id(str(bet["_id"]), message.id)
+
+        if self.button_message:
+            await self.button_message.delete()
 
 
 class BetView(discord.ui.View):
