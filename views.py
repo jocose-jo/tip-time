@@ -52,12 +52,13 @@ class GameView(discord.ui.View):
         for i, game in enumerate(self.run_attributes["game_data"]):
             runs_id = self.run_attributes["_id"]
             button_id = runs_id + i
-            self.add_item(GameButton(button_id, runs_id , game))
+            row = i // 5
+            self.add_item(GameButton(button_id, runs_id, game, row))
 
 
 class GameButton(discord.ui.Button):
-    def __init__(self, button_id, run_id, game):
-        super().__init__(label=game["name"], custom_id=f"{game['name']}-{button_id}", style=discord.ButtonStyle.primary, row=0)
+    def __init__(self, button_id, run_id, game, row=0):
+        super().__init__(label=game["name"], custom_id=f"{game['name']}-{button_id}", style=discord.ButtonStyle.primary, row=row)
         # initialize values to keep track of button state
         self.id = button_id
         self.run_id = run_id
