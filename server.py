@@ -2,7 +2,7 @@ import asyncio
 import os
 from aiohttp import web
 
-from env import DISCORD_TOKEN
+from env import DISCORD_TOKEN, MODE
 import bot_commands
 
 """
@@ -23,12 +23,19 @@ async def start_http_server():
     await site.start()
     print(f"HTTP server started on port {port}")
 
-async def main():
+def setup_client():
     client = bot_commands.init_client()
     bot_commands.add_bot_commands(client)
+    return client
 
+async def main():
+    client = setup_client()
     await start_http_server()
     await client.start(DISCORD_TOKEN)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    if MODE == 'development':
+        client = setup_client()
+        client.run(DISCORD_TOKEN)
+    else:
+        asyncio.run(main())
