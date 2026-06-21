@@ -214,20 +214,12 @@ def update_bet_message_id(bet_id, message_id):
 
 
 def award_rdw_completion_coins(run_id):
+    from formatting import calculate_rdw_reward
     run = fetch_rdw_run(run_id)
     if not run or run["status"] != "COMPLETE":
         return
 
-    total_time_seconds = (run["end"] - run["start"]).total_seconds()
-    hours = total_time_seconds / 3600
-
-    if hours < 3:
-        reward = 250
-    elif hours < 4:
-        reward = 200
-    else:
-        reward = 100
-
+    reward = calculate_rdw_reward(run["end"] - run["start"])
     for user in run["users"]:
         update_user_coins(user["id"], reward)
 

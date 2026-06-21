@@ -5,7 +5,7 @@ import datetime
 
 import db
 from db import fetch_rdw_run_or_create, update_rdw_game, fetch_rdw_run
-from formatting import format_bet_summary, format_duration
+from formatting import format_bet_summary, format_duration, calculate_rdw_reward
 
 
 class SelectView(discord.ui.View):
@@ -98,15 +98,7 @@ class StartView(discord.ui.View):
             if is_run_complete:
                 run = fetch_rdw_run(self.attributes["_id"])
                 db.award_rdw_completion_coins(self.attributes["_id"])
-
-                total_time_seconds = (run["end"] - run["start"]).total_seconds()
-                hours = total_time_seconds / 3600
-                if hours < 3:
-                    reward = 250
-                elif hours < 4:
-                    reward = 200
-                else:
-                    reward = 100
+                reward = calculate_rdw_reward(run["end"] - run["start"])
 
                 splits_message = f"AROUND THE WORLD COMPLETED! Total time: {format_duration(run_total_time)}\n\n**Game Splits:**\n"
                 for game in run["game_data"]:
