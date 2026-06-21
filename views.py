@@ -5,7 +5,7 @@ import datetime
 
 import db
 from db import fetch_rdw_run_or_create, update_rdw_game, fetch_rdw_run
-from formatting import format_bet_summary, format_duration, calculate_rdw_reward
+from formatting import format_bet_summary, format_duration, calculate_rdw_reward, format_team_mentions
 
 
 class SelectView(discord.ui.View):
@@ -34,13 +34,8 @@ class SelectView(discord.ui.View):
         reduced_users = [{"id": user.id, "name": user.name} for user in self.selected_users]
         reduced_users.append({"id": interaction.user.id, "name": interaction.user.name})
 
-        team_size = len(reduced_users)
-        if team_size == 1:
-            team_mention = interaction.user.mention
-        elif team_size == 2:
-            team_mention = f"{interaction.user.mention} and {self.selected_users[0].mention}"
-        else:  # team_size == 3
-            team_mention = f"{interaction.user.mention}, {self.selected_users[0].mention}, and {self.selected_users[1].mention}"
+        selected_mentions = [user.mention for user in self.selected_users]
+        team_mention = format_team_mentions(interaction.user.mention, selected_mentions)
 
         await interaction.channel.send(f"{team_mention} start AROUND THE WORLD!")
         await interaction.channel.send("Select Game", view=GameView(users=reduced_users))

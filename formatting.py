@@ -79,6 +79,16 @@ def calculate_rdw_reward(total_time):
         return 100
 
 
+def format_team_mentions(initiator_mention, selected_users_mentions):
+    team_size = len(selected_users_mentions) + 1
+    if team_size == 1:
+        return initiator_mention
+    elif team_size == 2:
+        return f"{initiator_mention} and {selected_users_mentions[0]}"
+    else:  # team_size == 3
+        return f"{initiator_mention}, {selected_users_mentions[0]}, and {selected_users_mentions[1]}"
+
+
 def format_bet_summary(bet):
     outcomes_summary = []
     for outcome in bet["outcomes"]:
