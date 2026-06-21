@@ -145,7 +145,7 @@ def add_bot_commands(client):
     async def create_bet(ctx):
         view = discord.ui.View()
         view.add_item(CreateBetButton())
-        await ctx.channel.send("Click the button to create a new bet:", view=view)
+        await ctx.send("Click the button to create a new bet:", view=view, ephemeral=True)
 
     @client.command(name="balance", description="Check your coin balance")
     async def check_balance(ctx):

@@ -154,7 +154,10 @@ class CreateBetModal(discord.ui.Modal):
         db.update_bet_message_id(str(bet["_id"]), message.id)
 
         if self.button_message:
-            await self.button_message.delete()
+            try:
+                await self.button_message.delete()
+            except discord.NotFound:
+                pass
 
 
 class BetView(discord.ui.View):
