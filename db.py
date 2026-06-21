@@ -213,6 +213,17 @@ def update_bet_message_id(bet_id, message_id):
     bets_collection.update_one(bet_query, {'$set': {'message_id': message_id}})
 
 
+def user_has_bet(bet_id, user_id):
+    from bson.objectid import ObjectId
+    bet = bets_collection.find_one({"_id": ObjectId(bet_id)})
+    if not bet:
+        return None
+    for wager in bet.get("bets", []):
+        if wager["user_id"] == user_id:
+            return wager["outcome"]
+    return None
+
+
 def settle_bet(bet_id, winner_outcome):
     from bson.objectid import ObjectId
     bet_query = {"_id": ObjectId(bet_id)}

@@ -178,6 +178,11 @@ class OutcomeButton(discord.ui.Button):
             await interaction.response.send_message("This bet is already settled!", ephemeral=True)
             return
 
+        existing_outcome = db.user_has_bet(self.bet_id, interaction.user.id)
+        if existing_outcome:
+            await interaction.response.send_message(f"You've already bet on {existing_outcome}!", ephemeral=True)
+            return
+
         user_coins = db.get_user_coins(interaction.user.id)
         await interaction.response.send_modal(WagerModal(self.bet_id, self.outcome, user_coins, interaction.user.id, interaction.user.name, interaction.message))
 
@@ -194,6 +199,11 @@ class WagerModal(discord.ui.Modal):
         self.add_item(discord.ui.TextInput(label=f"Amount (max {user_coins})", placeholder="100"))
 
     async def on_submit(self, interaction: discord.Interaction):
+        existing_outcome = db.user_has_bet(self.bet_id, self.user_id)
+        if existing_outcome:
+            await interaction.response.send_message(f"You've already bet on {existing_outcome}!", ephemeral=True)
+            return
+
         try:
             amount = int(self.children[0].value.strip())
         except ValueError:
