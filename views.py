@@ -125,12 +125,13 @@ class CreateBetButton(discord.ui.Button):
         super().__init__(label="Create Bet", style=discord.ButtonStyle.primary)
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(CreateBetModal())
+        await interaction.response.send_modal(CreateBetModal(interaction.message))
 
 
 class CreateBetModal(discord.ui.Modal):
-    def __init__(self):
+    def __init__(self, button_message=None):
         super().__init__(title="Create a Bet")
+        self.button_message = button_message
         self.add_item(discord.ui.TextInput(label="Bet Description", placeholder="e.g., Who wins the race?"))
         self.add_item(discord.ui.TextInput(label="Outcomes (comma-separated)", placeholder="e.g., Alice,Bob,Carol"))
 
@@ -151,6 +152,12 @@ class CreateBetModal(discord.ui.Modal):
         )
         message = await interaction.original_response()
         db.update_bet_message_id(str(bet["_id"]), message.id)
+
+        if self.button_message:
+            try:
+                await self.button_message.delete()
+            except discord.NotFound:
+                pass
 
 
 class BetView(discord.ui.View):
@@ -178,6 +185,11 @@ class OutcomeButton(discord.ui.Button):
             await interaction.response.send_message("This bet is already settled!", ephemeral=True)
             return
 
+        existing_outcome = db.user_has_bet(self.bet_id, interaction.user.id)
+        if existing_outcome:
+            await interaction.response.send_message(f"You've already bet on {existing_outcome}!", ephemeral=True)
+            return
+
         user_coins = db.get_user_coins(interaction.user.id)
         await interaction.response.send_modal(WagerModal(self.bet_id, self.outcome, user_coins, interaction.user.id, interaction.user.name, interaction.message))
 
@@ -194,6 +206,11 @@ class WagerModal(discord.ui.Modal):
         self.add_item(discord.ui.TextInput(label=f"Amount (max {user_coins})", placeholder="100"))
 
     async def on_submit(self, interaction: discord.Interaction):
+        existing_outcome = db.user_has_bet(self.bet_id, self.user_id)
+        if existing_outcome:
+            await interaction.response.send_message(f"You've already bet on {existing_outcome}!", ephemeral=True)
+            return
+
         try:
             amount = int(self.children[0].value.strip())
         except ValueError:
