@@ -8,6 +8,8 @@ from formatting import (
     calculate_in_game_time,
     convert_to_table,
     format_bet_summary,
+    format_duration,
+    calculate_rdw_reward,
 )
 
 
@@ -165,3 +167,73 @@ class TestFormatBetSummary:
         assert "Heads: 150" in result
         assert "Alice" in result
         assert "Bob" in result
+
+
+class TestFormatDuration:
+    def test_seconds_only(self):
+        duration = timedelta(seconds=45)
+        assert format_duration(duration) == "45 seconds"
+
+    def test_minutes_and_seconds(self):
+        duration = timedelta(minutes=5, seconds=30)
+        result = format_duration(duration)
+        assert "5 min" in result
+        assert "30 second" in result
+
+    def test_hours_minutes_seconds(self):
+        duration = timedelta(hours=2, minutes=30, seconds=15)
+        result = format_duration(duration)
+        assert "2 hr" in result
+        assert "30 min" in result
+        assert "15 second" in result
+
+    def test_single_hour(self):
+        duration = timedelta(hours=1)
+        assert "1 hr" in format_duration(duration)
+        assert "hrs" not in format_duration(duration)
+
+    def test_single_minute(self):
+        duration = timedelta(minutes=1)
+        assert "1 min" in format_duration(duration)
+
+    def test_zero_duration(self):
+        duration = timedelta()
+        assert format_duration(duration) == "0 seconds"
+
+
+class TestCalculateRDWReward:
+    def test_under_3_hours_gets_250(self):
+        duration = timedelta(hours=2, minutes=59)
+        assert calculate_rdw_reward(duration) == 250
+
+    def test_exactly_3_hours_gets_200(self):
+        duration = timedelta(hours=3, minutes=0)
+        assert calculate_rdw_reward(duration) == 200
+
+    def test_between_3_and_4_hours_gets_200(self):
+        duration = timedelta(hours=3, minutes=30)
+        assert calculate_rdw_reward(duration) == 200
+
+    def test_exactly_4_hours_gets_100(self):
+        duration = timedelta(hours=4, minutes=0)
+        assert calculate_rdw_reward(duration) == 100
+
+    def test_over_4_hours_gets_100(self):
+        duration = timedelta(hours=5, minutes=15)
+        assert calculate_rdw_reward(duration) == 100
+
+    def test_just_under_3_hours(self):
+        duration = timedelta(hours=2, minutes=59, seconds=59)
+        assert calculate_rdw_reward(duration) == 250
+
+    def test_just_over_3_hours(self):
+        duration = timedelta(hours=3, minutes=0, seconds=1)
+        assert calculate_rdw_reward(duration) == 200
+
+    def test_just_under_4_hours(self):
+        duration = timedelta(hours=3, minutes=59, seconds=59)
+        assert calculate_rdw_reward(duration) == 200
+
+    def test_just_over_4_hours(self):
+        duration = timedelta(hours=4, minutes=0, seconds=1)
+        assert calculate_rdw_reward(duration) == 100

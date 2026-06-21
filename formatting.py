@@ -64,6 +64,16 @@ def format_duration(timedelta_obj):
         return f"{parts[0]} {parts[1]} and {parts[2]}"
 
 
+def calculate_rdw_reward(total_time):
+    hours = total_time.total_seconds() / 3600
+    if hours < 3:
+        return 250
+    elif hours < 4:
+        return 200
+    else:
+        return 100
+
+
 def format_bet_summary(bet):
     outcomes_summary = []
     for outcome in bet["outcomes"]:

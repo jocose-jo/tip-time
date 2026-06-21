@@ -213,6 +213,17 @@ def update_bet_message_id(bet_id, message_id):
     bets_collection.update_one(bet_query, {'$set': {'message_id': message_id}})
 
 
+def award_rdw_completion_coins(run_id):
+    from formatting import calculate_rdw_reward
+    run = fetch_rdw_run(run_id)
+    if not run or run["status"] != "COMPLETE":
+        return
+
+    reward = calculate_rdw_reward(run["end"] - run["start"])
+    for user in run["users"]:
+        update_user_coins(user["id"], reward)
+
+
 def user_has_bet(bet_id, user_id):
     from bson.objectid import ObjectId
     bet = bets_collection.find_one({"_id": ObjectId(bet_id)})

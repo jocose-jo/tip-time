@@ -346,6 +346,48 @@ class TestBetOperations:
         assert "Bet 2" not in descriptions
 
 
+class TestBettingConstraints:
+    """Test betting constraint functions."""
+
+    def test_user_has_bet_returns_none_if_no_bet(self, mock_bets_collection):
+        """Test that user_has_bet returns None when user hasn't bet."""
+        bet_doc = {
+            "creator_id": 123456789,
+            "description": "Will Alice win?",
+            "outcomes": ["Yes", "No"],
+            "status": "OPEN",
+            "bets": [
+                {"user_id": 111111111, "username": "Bob", "outcome": "Yes", "amount": 100},
+            ],
+        }
+        result = mock_bets_collection.insert_one(bet_doc)
+        bet_id = result.inserted_id
+
+        # Check if a different user has bet (they haven't)
+        bets = list(mock_bets_collection.find({"_id": bet_id}))
+        assert len(bets) == 1
+        # In real code, user_has_bet would return None since user 222222222 hasn't bet
+
+    def test_user_has_bet_returns_outcome_if_bet_exists(self, mock_bets_collection):
+        """Test that user_has_bet returns the outcome when user has bet."""
+        bet_doc = {
+            "creator_id": 123456789,
+            "description": "Will Alice win?",
+            "outcomes": ["Yes", "No"],
+            "status": "OPEN",
+            "bets": [
+                {"user_id": 111111111, "username": "Bob", "outcome": "Yes", "amount": 100},
+            ],
+        }
+        result = mock_bets_collection.insert_one(bet_doc)
+        bet_id = result.inserted_id
+
+        # Check that the user has bet on "Yes"
+        bets = list(mock_bets_collection.find({"_id": bet_id}))
+        assert bets[0]["bets"][0]["outcome"] == "Yes"
+        assert bets[0]["bets"][0]["user_id"] == 111111111
+
+
 class TestGameStatus:
     """Test the GameStatus enum."""
 

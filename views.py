@@ -5,7 +5,7 @@ import datetime
 
 import db
 from db import fetch_rdw_run_or_create, update_rdw_game, fetch_rdw_run
-from formatting import format_bet_summary, format_duration
+from formatting import format_bet_summary, format_duration, calculate_rdw_reward
 
 
 class SelectView(discord.ui.View):
@@ -97,11 +97,15 @@ class StartView(discord.ui.View):
             is_run_complete, run_total_time = db.check_if_run_complete(self.attributes["_id"], end_time)
             if is_run_complete:
                 run = fetch_rdw_run(self.attributes["_id"])
+                db.award_rdw_completion_coins(self.attributes["_id"])
+                reward = calculate_rdw_reward(run["end"] - run["start"])
+
                 splits_message = f"AROUND THE WORLD COMPLETED! Total time: {format_duration(run_total_time)}\n\n**Game Splits:**\n"
                 for game in run["game_data"]:
                     if game["status"] == "COMPLETE":
                         game_time = game["end"] - game["start"]
                         splits_message += f"• {game['name']}: {format_duration(game_time)}\n"
+                splits_message += f"\n🎉 Each participant earned **{reward}** coins!"
                 await interaction.channel.send(splits_message)
                 await game_view_message.delete()
         else:
