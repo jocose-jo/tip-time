@@ -97,11 +97,23 @@ class StartView(discord.ui.View):
             is_run_complete, run_total_time = db.check_if_run_complete(self.attributes["_id"], end_time)
             if is_run_complete:
                 run = fetch_rdw_run(self.attributes["_id"])
+                db.award_rdw_completion_coins(self.attributes["_id"])
+
+                total_time_seconds = (run["end"] - run["start"]).total_seconds()
+                hours = total_time_seconds / 3600
+                if hours < 3:
+                    reward = 250
+                elif hours < 4:
+                    reward = 200
+                else:
+                    reward = 100
+
                 splits_message = f"AROUND THE WORLD COMPLETED! Total time: {format_duration(run_total_time)}\n\n**Game Splits:**\n"
                 for game in run["game_data"]:
                     if game["status"] == "COMPLETE":
                         game_time = game["end"] - game["start"]
                         splits_message += f"• {game['name']}: {format_duration(game_time)}\n"
+                splits_message += f"\n🎉 Each participant earned **{reward}** coins!"
                 await interaction.channel.send(splits_message)
                 await game_view_message.delete()
         else:
