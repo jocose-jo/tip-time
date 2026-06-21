@@ -15,8 +15,8 @@ class SelectView(discord.ui.View):
 
     @discord.ui.select(
         cls=discord.ui.UserSelect,
-        placeholder="Select your 2 partners",
-        min_values=2,
+        placeholder="Select your teammates (0-2 partners)",
+        min_values=0,
         max_values=2,
     )
     async def user_select(self, interaction: discord.Interaction, select: discord.ui.UserSelect):
@@ -27,13 +27,22 @@ class SelectView(discord.ui.View):
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green, disabled=True)
     async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if len(self.selected_users) != 2:
-            await interaction.response.send_message("Please select exactly 2 partners!", ephemeral=True)
+        if len(self.selected_users) > 2:
+            await interaction.response.send_message("You can select a maximum of 2 partners!", ephemeral=True)
             return
 
-        await interaction.channel.send(f"{interaction.user.mention} selects {self.selected_users[0].mention} and {self.selected_users[1].mention} to start AROUND THE WORLD!")
         reduced_users = [{"id": user.id, "name": user.name} for user in self.selected_users]
         reduced_users.append({"id": interaction.user.id, "name": interaction.user.name})
+
+        team_size = len(reduced_users)
+        if team_size == 1:
+            team_mention = interaction.user.mention
+        elif team_size == 2:
+            team_mention = f"{interaction.user.mention} and {self.selected_users[0].mention}"
+        else:  # team_size == 3
+            team_mention = f"{interaction.user.mention}, {self.selected_users[0].mention}, and {self.selected_users[1].mention}"
+
+        await interaction.channel.send(f"{team_mention} start AROUND THE WORLD!")
         await interaction.channel.send("Select Game", view=GameView(users=reduced_users))
         await interaction.message.delete()
 

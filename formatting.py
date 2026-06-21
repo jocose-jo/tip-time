@@ -4,6 +4,11 @@ from table2ascii import table2ascii as t2a, PresetStyle
 
 
 def format_users(users):
+    if len(users) == 0:
+        return ""
+    if len(users) == 1:
+        return users[0]['name']
+
     output_str = ""
     for idx, user in enumerate(users):
         if idx == len(users) - 1:
