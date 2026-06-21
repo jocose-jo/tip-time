@@ -240,3 +240,10 @@ def settle_bet(bet_id, winner_outcome):
     bet_query = {"_id": ObjectId(bet_id)}
     bets_collection.update_one(bet_query, {'$set': {'status': 'SETTLED', 'winner_outcome': winner_outcome}})
     return bets_collection.find_one(bet_query)
+
+
+def close_bet(bet_id):
+    from bson.objectid import ObjectId
+    bet_query = {"_id": ObjectId(bet_id)}
+    bets_collection.update_one(bet_query, {'$set': {'status': 'CLOSED'}})
+    return bets_collection.find_one(bet_query)

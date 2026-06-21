@@ -174,6 +174,7 @@ class BetView(discord.ui.View):
         for outcome in bet["outcomes"]:
             self.add_item(OutcomeButton(str(bet["_id"]), outcome, bet["status"]))
 
+        self.add_item(CloseButton(str(bet["_id"]), creator_id, bet["status"]))
         self.add_item(ResolveButton(str(bet["_id"]), creator_id, bet["status"]))
 
 
@@ -186,6 +187,9 @@ class OutcomeButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         bet = db.fetch_bet(self.bet_id)
+        if bet["status"] == "CLOSED":
+            await interaction.response.send_message("No longer receiving new bets!", ephemeral=True)
+            return
         if bet["status"] != "OPEN":
             await interaction.response.send_message("This bet is already settled!", ephemeral=True)
             return
@@ -239,12 +243,35 @@ class WagerModal(discord.ui.Modal):
         await interaction.response.send_message(f"You bet {amount} coins on {self.outcome}!", ephemeral=True)
 
 
+class CloseButton(discord.ui.Button):
+    def __init__(self, bet_id, creator_id, bet_status):
+        super().__init__(label="Close Bets", custom_id=f"close-{bet_id}", style=discord.ButtonStyle.danger)
+        self.bet_id = bet_id
+        self.creator_id = creator_id
+        self.disabled = bet_status != "OPEN"
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.creator_id:
+            await interaction.response.send_message("Only the bet creator can close the bet!", ephemeral=True)
+            return
+
+        bet = db.fetch_bet(self.bet_id)
+        if bet["status"] != "OPEN":
+            await interaction.response.send_message("This bet is already closed or settled!", ephemeral=True)
+            return
+
+        db.close_bet(self.bet_id)
+        bet = db.fetch_bet(self.bet_id)
+        summary = format_bet_summary(bet)
+        await interaction.message.edit(content=f"**{bet['description']}**\n\n{summary}\n\n⛔ **No longer receiving new bets**", view=BetView(bet, self.creator_id))
+
+
 class ResolveButton(discord.ui.Button):
     def __init__(self, bet_id, creator_id, bet_status):
         super().__init__(label="Resolve", custom_id=f"resolve-{bet_id}", style=discord.ButtonStyle.success)
         self.bet_id = bet_id
         self.creator_id = creator_id
-        self.disabled = bet_status != "OPEN"
+        self.disabled = bet_status == "SETTLED"
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.creator_id:
@@ -252,7 +279,7 @@ class ResolveButton(discord.ui.Button):
             return
 
         bet = db.fetch_bet(self.bet_id)
-        if bet["status"] != "OPEN":
+        if bet["status"] == "SETTLED":
             await interaction.response.send_message("This bet is already settled!", ephemeral=True)
             return
 
