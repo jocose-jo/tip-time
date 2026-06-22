@@ -89,6 +89,22 @@ def format_team_mentions(initiator_mention, selected_users_mentions):
         return f"{initiator_mention}, {selected_users_mentions[0]}, and {selected_users_mentions[1]}"
 
 
+def format_team_summary(selected_users, initiator_name):
+    team_size = len(selected_users) + 1
+    if team_size == 1:
+        run_type = "👤 Solo Run"
+        team_display = f"Team: {initiator_name}"
+    elif team_size == 2:
+        teammate = selected_users[0].name
+        run_type = "👥 Duo Run"
+        team_display = f"Team: {initiator_name} + {teammate}"
+    else:  # team_size == 3
+        teammates = ", ".join([u.name for u in selected_users])
+        run_type = "👨‍👩‍👧 Trio Run"
+        team_display = f"Team: {initiator_name} + {teammates}"
+    return run_type, team_display
+
+
 def format_bet_summary(bet):
     outcomes_summary = []
     for outcome in bet["outcomes"]:

@@ -5,24 +5,13 @@ import datetime
 
 import db
 from db import fetch_rdw_run_or_create, update_rdw_game, fetch_rdw_run
-from formatting import format_bet_summary, format_duration, calculate_rdw_reward, format_team_mentions
+from formatting import format_bet_summary, format_duration, calculate_rdw_reward, format_team_mentions, format_team_summary
 
 
 class SelectView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
         self.selected_users = []
-
-    def get_team_summary(self, initiator_name):
-        team_size = len(self.selected_users) + 1
-        if team_size == 1:
-            return "👤 Solo Run", f"Team: {initiator_name}"
-        elif team_size == 2:
-            teammate = self.selected_users[0].name
-            return "👥 Duo Run", f"Team: {initiator_name} + {teammate}"
-        else:  # team_size == 3
-            teammates = ", ".join([u.name for u in self.selected_users])
-            return "👨‍👩‍👧 Trio Run", f"Team: {initiator_name} + {teammates}"
 
     @discord.ui.select(
         cls=discord.ui.UserSelect,
@@ -34,7 +23,7 @@ class SelectView(discord.ui.View):
         self.selected_users = select.values
         self.confirm_button.disabled = False
 
-        run_type, team_display = self.get_team_summary(interaction.user.name)
+        run_type, team_display = format_team_summary(self.selected_users, interaction.user.name)
         content = f"**Start AROUND THE WORLD**\n\n{run_type}\n{team_display}"
 
         await interaction.response.defer()
