@@ -14,7 +14,8 @@ class TeammateSelect(discord.ui.Select):
         self.guild = guild
         self.selected_users_map = {}
 
-        options = []
+        options = [discord.SelectOption(label="Solo", value="solo", emoji="😈")]
+
         for member in guild.members:
             if member.id != initiator_id:
                 display_name = member.display_name or member.name
@@ -31,7 +32,7 @@ class TeammateSelect(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        if self.values and self.values[0] != "none":
+        if self.values and self.values[0] not in ("none", "solo"):
             self.view.selected_users = [self.selected_users_map[user_id] for user_id in self.values]
         else:
             self.view.selected_users = []
