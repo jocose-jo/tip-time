@@ -8,32 +8,47 @@ from db import fetch_rdw_run_or_create, update_rdw_game, fetch_rdw_run
 from formatting import format_bet_summary, format_duration, calculate_rdw_reward, format_team_mentions, format_team_summary
 
 
+class TeammateSelect(discord.ui.Select):
+    def __init__(self, initiator_id, guild):
+        self.initiator_id = initiator_id
+        self.guild = guild
+        self.selected_users_map = {}
+
+        options = []
+        for member in guild.members:
+            if member.id != initiator_id and not member.bot:
+                options.append(discord.SelectOption(label=member.name, value=str(member.id)))
+                self.selected_users_map[str(member.id)] = member
+
+        super().__init__(
+            placeholder="Select your teammates (0-2 partners)",
+            min_values=0,
+            max_values=2,
+            options=options if options else [discord.SelectOption(label="No other users available", value="none", disabled=True)]
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        if self.values and self.values[0] != "none":
+            self.view.selected_users = [self.selected_users_map[user_id] for user_id in self.values]
+        else:
+            self.view.selected_users = []
+
+        await interaction.response.defer()
+        await self.view.update_team_display(interaction.message, interaction.user.name, self.view.selected_users)
+
+
 class SelectView(discord.ui.View):
-    def __init__(self, initiator_id):
+    def __init__(self, initiator_id, guild):
         super().__init__(timeout=None)
         self.selected_users = []
         self.initiator_id = initiator_id
+        self.guild = guild
+        self.add_item(TeammateSelect(initiator_id, guild))
 
-    @discord.ui.select(
-        cls=discord.ui.UserSelect,
-        placeholder="Select your teammates (0-2 partners)",
-        min_values=0,
-        max_values=2,
-    )
-    async def user_select(self, interaction: discord.Interaction, select: discord.ui.UserSelect):
-        had_self_selection = any(user.id == self.initiator_id for user in select.values)
-        self.selected_users = [u for u in select.values if u.id != self.initiator_id]
-
-        if had_self_selection:
-            await interaction.response.send_message("You can't select yourself as a teammate! (Removed from selection)", ephemeral=True)
-        else:
-            await interaction.response.defer()
-
-
-        run_type, team_display = format_team_summary(self.selected_users, interaction.user.name)
+    async def update_team_display(self, message, initiator_name, selected_users):
+        run_type, team_display = format_team_summary(selected_users, initiator_name)
         content = f"**Start AROUND THE WORLD**\n\n{run_type}\n{team_display}"
-
-        await interaction.message.edit(content=content, view=self)
+        await message.edit(content=content, view=self)
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
     async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
