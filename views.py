@@ -16,13 +16,28 @@ class TeammateSelect(discord.ui.Select):
 
         options = [discord.SelectOption(label="Solo", value="solo", emoji="😈")]
 
-        for member in guild.members:
-            if member.id != initiator_id:
-                display_name = member.display_name or member.name
-                emoji = "🤖" if member.bot else "👤"
-                label = f"{display_name}"
-                options.append(discord.SelectOption(label=label, value=str(member.id), emoji=emoji))
-                self.selected_users_map[str(member.id)] = member
+        try:
+            if guild and hasattr(guild, 'members'):
+                for member in guild.members:
+                    try:
+                        if member.id != initiator_id:
+                            display_name = member.display_name or member.name
+                            emoji = "🤖" if member.bot else "👤"
+                            label = f"{display_name}"
+                            options.append(discord.SelectOption(label=label, value=str(member.id), emoji=emoji))
+                            self.selected_users_map[str(member.id)] = member
+                    except Exception as e:
+                        print(f"Error processing member: {e}")
+                        continue
+        except Exception as e:
+            print(f"Error accessing guild members: {e}")
+            # Fallback - show message that members couldn't be loaded
+            if len(options) == 1:  # Only Solo option
+                options.append(discord.SelectOption(
+                    label="Members not available (enable GUILD_MEMBERS intent)",
+                    value="none",
+                    disabled=True
+                ))
 
         super().__init__(
             placeholder="Select your teammates (0-2 partners)",
