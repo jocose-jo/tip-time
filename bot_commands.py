@@ -104,7 +104,8 @@ def add_bot_commands(client):
 
     @client.command(name="start", description="Ask the bot to start around the world")
     async def start_around_the_world(ctx):
-        await ctx.channel.send("Start around the world?", view=SelectView())
+        default_message = "**Start AROUND THE WORLD**\n\n👤 Solo Run\nTeam: " + ctx.author.name
+        await ctx.channel.send(default_message, view=SelectView(ctx.author.id))
 
     @client.command(name="leaderboard", description="Fastest around the world runs, and those who completed it.")
     async def fetch_fastest_rdw_run(ctx):

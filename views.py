@@ -9,9 +9,10 @@ from formatting import format_bet_summary, format_duration, calculate_rdw_reward
 
 
 class SelectView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, initiator_id):
         super().__init__(timeout=None)
         self.selected_users = []
+        self.initiator_id = initiator_id
 
     @discord.ui.select(
         cls=discord.ui.UserSelect,
@@ -20,6 +21,10 @@ class SelectView(discord.ui.View):
         max_values=2,
     )
     async def user_select(self, interaction: discord.Interaction, select: discord.ui.UserSelect):
+        if any(user.id == self.initiator_id for user in select.values):
+            await interaction.response.send_message("You can't select yourself as a teammate!", ephemeral=True)
+            return
+
         self.selected_users = select.values
         self.confirm_button.disabled = False
 
