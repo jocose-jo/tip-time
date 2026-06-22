@@ -17,36 +17,15 @@ class TeammateSelect(discord.ui.Select):
         options = [discord.SelectOption(label="Solo", value="solo", emoji="😈")]
         MAX_OPTIONS = 25  # Discord Select limit
 
-        try:
-            if guild and hasattr(guild, 'members'):
-                member_count = 0
-                for member in guild.members:
-                    if len(options) >= MAX_OPTIONS:
-                        print(f"Reached Discord Select option limit (25). Total members available: {member_count}")
-                        break
-
-                    try:
-                        if member.id != initiator_id:
-                            member_count += 1
-                            display_name = member.display_name or member.name
-                            emoji = "🤖" if member.bot else "👤"
-                            label = f"{display_name}"
-                            options.append(discord.SelectOption(label=label, value=str(member.id), emoji=emoji))
-                            self.selected_users_map[str(member.id)] = member
-                    except Exception as e:
-                        print(f"Error processing member: {e}")
-                        continue
-
-                print(f"TeammateSelect created with {len(options)} options ({len(self.selected_users_map)} users)")
-        except Exception as e:
-            print(f"Error accessing guild members: {e}")
-            # Fallback - show message that members couldn't be loaded
-            if len(options) == 1:  # Only Solo option
-                options.append(discord.SelectOption(
-                    label="Members not available (enable GUILD_MEMBERS intent)",
-                    value="none",
-                    disabled=True
-                ))
+        for member in guild.members:
+            if len(options) >= MAX_OPTIONS:
+                break
+            if member.id != initiator_id:
+                display_name = member.display_name or member.name
+                emoji = "🤖" if member.bot else "👤"
+                label = f"{display_name}"
+                options.append(discord.SelectOption(label=label, value=str(member.id), emoji=emoji))
+                self.selected_users_map[str(member.id)] = member
 
         super().__init__(
             placeholder="Select your teammates (0-2 partners)",
@@ -56,28 +35,13 @@ class TeammateSelect(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        try:
-            if self.values and self.values[0] not in ("none", "solo"):
-                try:
-                    self.view.selected_users = [self.selected_users_map[user_id] for user_id in self.values]
-                except KeyError as e:
-                    print(f"Selected user not found in map: {e}")
-                    self.view.selected_users = []
-            else:
-                self.view.selected_users = []
+        if self.values and self.values[0] not in ("none", "solo"):
+            self.view.selected_users = [self.selected_users_map[user_id] for user_id in self.values]
+        else:
+            self.view.selected_users = []
 
-            try:
-                await interaction.response.defer()
-            except discord.HTTPException as e:
-                print(f"Error deferring response: {e}")
-                return
-
-            try:
-                await self.view.update_team_display(interaction.message, interaction.user.name, self.view.selected_users)
-            except Exception as e:
-                print(f"Error updating team display in callback: {e}")
-        except Exception as e:
-            print(f"Unexpected error in TeammateSelect callback: {e}")
+        await interaction.response.defer()
+        await self.view.update_team_display(interaction.message, interaction.user.name, self.view.selected_users)
 
 
 class SelectView(discord.ui.View):
@@ -86,93 +50,33 @@ class SelectView(discord.ui.View):
         self.selected_users = []
         self.initiator_id = initiator_id
         self.guild = guild
-        try:
-            self.add_item(TeammateSelect(initiator_id, guild))
-        except Exception as e:
-            print(f"Error creating TeammateSelect: {e}")
+        self.add_item(TeammateSelect(initiator_id, guild))
 
     async def update_team_display(self, message, initiator_name, selected_users):
-        try:
-            run_type, team_display = format_team_summary(selected_users, initiator_name)
-            content = f"**Start AROUND THE WORLD**\n\n{run_type}\n{team_display}"
-            await message.edit(content=content, view=self)
-        except discord.NotFound:
-            print("Message not found - may have been deleted")
-        except discord.HTTPException as e:
-            print(f"HTTP error updating team display: {e}")
-        except Exception as e:
-            print(f"Error updating team display: {e}")
+        run_type, team_display = format_team_summary(selected_users, initiator_name)
+        content = f"**Start AROUND THE WORLD**\n\n{run_type}\n{team_display}"
+        await message.edit(content=content, view=self)
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green, row=1)
     async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        try:
-            if len(self.selected_users) > 2:
-                await interaction.response.send_message("You can select a maximum of 2 partners!", ephemeral=True)
-                return
+        if len(self.selected_users) > 2:
+            await interaction.response.send_message("You can select a maximum of 2 partners!", ephemeral=True)
+            return
 
-            try:
-                reduced_users = [{"id": user.id, "name": user.name} for user in self.selected_users]
-                reduced_users.append({"id": interaction.user.id, "name": interaction.user.name})
-            except AttributeError as e:
-                await interaction.response.send_message(f"Error accessing user data: {e}", ephemeral=True)
-                return
+        reduced_users = [{"id": user.id, "name": user.name} for user in self.selected_users]
+        reduced_users.append({"id": interaction.user.id, "name": interaction.user.name})
 
-            try:
-                selected_mentions = [user.mention for user in self.selected_users]
-                team_mention = format_team_mentions(interaction.user.mention, selected_mentions)
-            except Exception as e:
-                await interaction.response.send_message(f"Error formatting team: {e}", ephemeral=True)
-                return
+        selected_mentions = [user.mention for user in self.selected_users]
+        team_mention = format_team_mentions(interaction.user.mention, selected_mentions)
 
-            try:
-                await interaction.channel.send(f"{team_mention} start(s) AROUND THE WORLD!")
-            except discord.Forbidden:
-                await interaction.response.send_message("I don't have permission to send messages in this channel!", ephemeral=True)
-                return
-            except discord.HTTPException as e:
-                await interaction.response.send_message(f"Error sending start message: {e}", ephemeral=True)
-                return
-
-            try:
-                await interaction.channel.send("Select Game", view=GameView(users=reduced_users))
-            except Exception as e:
-                print(f"Error creating GameView: {e}")
-                await interaction.response.send_message(f"Error starting game view: {e}", ephemeral=True)
-                return
-
-            try:
-                await interaction.message.delete()
-            except discord.NotFound:
-                pass  # Message already deleted
-            except discord.Forbidden:
-                print("Cannot delete message - missing permissions")
-            except discord.HTTPException as e:
-                print(f"Error deleting message: {e}")
-
-        except Exception as e:
-            print(f"Unexpected error in confirm_button: {e}")
-            try:
-                await interaction.response.send_message(f"An unexpected error occurred: {e}", ephemeral=True)
-            except:
-                pass
+        await interaction.channel.send(f"{team_mention} start(s) AROUND THE WORLD!")
+        await interaction.channel.send("Select Game", view=GameView(users=reduced_users))
+        await interaction.message.delete()
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=1)
     async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        try:
-            await interaction.response.send_message("Selection canceled.", ephemeral=True)
-        except discord.HTTPException as e:
-            print(f"Error sending cancel message: {e}")
-        except Exception as e:
-            print(f"Error in cancel response: {e}")
-
-        try:
-            await interaction.message.delete()
-        except discord.NotFound:
-            pass  # Message already deleted
-        except discord.Forbidden:
-            print("Cannot delete message - missing permissions")
-        except discord.HTTPException as e:
-            print(f"Error deleting message: {e}")
+        await interaction.response.send_message("Selection canceled.", ephemeral=True)
+        await interaction.message.delete()
 
 
 class GameView(discord.ui.View):
