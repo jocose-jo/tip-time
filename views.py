@@ -29,7 +29,6 @@ class SelectView(discord.ui.View):
         else:
             await interaction.response.defer()
 
-        self.confirm_button.disabled = False
 
         run_type, team_display = format_team_summary(self.selected_users, interaction.user.name)
         content = f"**Start AROUND THE WORLD**\n\n{run_type}\n{team_display}"
