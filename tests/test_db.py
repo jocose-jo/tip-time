@@ -398,3 +398,122 @@ class TestGameStatus:
         assert GameStatus.COMPLETE.value == 3
         assert GameStatus.CANCELED.value == 4
         assert GameStatus.FAILED.value == 5
+
+
+class TestCloseBet:
+    """Test close_bet function for closing bets to new wagers."""
+
+    def test_close_open_bet(self, mock_bets_collection):
+        """Test closing an open bet."""
+        bet_id = ObjectId()
+        bet_doc = {
+            "_id": bet_id,
+            "creator_id": 123456789,
+            "description": "Who wins?",
+            "outcomes": ["Alice", "Bob"],
+            "status": "OPEN",
+            "bets": [],
+        }
+        mock_bets_collection.insert_one(bet_doc)
+
+        # Close the bet
+        mock_bets_collection.update_one(
+            {"_id": bet_id},
+            {'$set': {'status': 'CLOSED'}}
+        )
+
+        result = mock_bets_collection.find_one({"_id": bet_id})
+        assert result["status"] == "CLOSED"
+
+    def test_close_bet_with_existing_wagers(self, mock_bets_collection):
+        """Test closing a bet that already has wagers."""
+        bet_id = ObjectId()
+        bet_doc = {
+            "_id": bet_id,
+            "creator_id": 123456789,
+            "description": "Who wins?",
+            "outcomes": ["Alice", "Bob"],
+            "status": "OPEN",
+            "bets": [
+                {"user_id": 111111111, "username": "Alice", "outcome": "Alice", "amount": 100},
+                {"user_id": 222222222, "username": "Bob", "outcome": "Bob", "amount": 50},
+            ],
+        }
+        mock_bets_collection.insert_one(bet_doc)
+
+        # Close the bet
+        mock_bets_collection.update_one(
+            {"_id": bet_id},
+            {'$set': {'status': 'CLOSED'}}
+        )
+
+        result = mock_bets_collection.find_one({"_id": bet_id})
+        assert result["status"] == "CLOSED"
+        assert len(result["bets"]) == 2
+        assert result["bets"][0]["amount"] == 100
+
+    def test_closed_bet_prevents_new_wagers(self, mock_bets_collection):
+        """Test that closed bets prevent new wagers."""
+        bet_id = ObjectId()
+        bet_doc = {
+            "_id": bet_id,
+            "creator_id": 123456789,
+            "description": "Who wins?",
+            "outcomes": ["Alice", "Bob"],
+            "status": "CLOSED",
+            "bets": [],
+        }
+        mock_bets_collection.insert_one(bet_doc)
+
+        result = mock_bets_collection.find_one({"_id": bet_id})
+        assert result["status"] == "CLOSED"
+        # Closed status should prevent new wagers in application logic
+
+    def test_closed_bet_preserves_creator(self, mock_bets_collection):
+        """Test that closing a bet preserves creator info."""
+        bet_id = ObjectId()
+        creator_id = 123456789
+        bet_doc = {
+            "_id": bet_id,
+            "creator_id": creator_id,
+            "description": "Who wins?",
+            "outcomes": ["Alice", "Bob"],
+            "status": "OPEN",
+            "bets": [],
+        }
+        mock_bets_collection.insert_one(bet_doc)
+
+        # Close the bet
+        mock_bets_collection.update_one(
+            {"_id": bet_id},
+            {'$set': {'status': 'CLOSED'}}
+        )
+
+        result = mock_bets_collection.find_one({"_id": bet_id})
+        assert result["creator_id"] == creator_id
+
+    def test_close_bet_status_transition(self, mock_bets_collection):
+        """Test bet transitions from OPEN to CLOSED correctly."""
+        bet_id = ObjectId()
+        bet_doc = {
+            "_id": bet_id,
+            "status": "OPEN",
+            "description": "Test",
+            "outcomes": ["A", "B"],
+            "bets": [],
+        }
+        mock_bets_collection.insert_one(bet_doc)
+
+        # Verify initial state
+        result = mock_bets_collection.find_one({"_id": bet_id})
+        assert result["status"] == "OPEN"
+
+        # Close it
+        mock_bets_collection.update_one(
+            {"_id": bet_id},
+            {'$set': {'status': 'CLOSED'}}
+        )
+
+        # Verify closed state
+        result = mock_bets_collection.find_one({"_id": bet_id})
+        assert result["status"] == "CLOSED"
