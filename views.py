@@ -21,17 +21,19 @@ class SelectView(discord.ui.View):
         max_values=2,
     )
     async def user_select(self, interaction: discord.Interaction, select: discord.ui.UserSelect):
-        if any(user.id == self.initiator_id for user in select.values):
-            await interaction.response.send_message("You can't select yourself as a teammate!", ephemeral=True)
-            return
+        had_self_selection = any(user.id == self.initiator_id for user in select.values)
+        self.selected_users = [u for u in select.values if u.id != self.initiator_id]
 
-        self.selected_users = select.values
+        if had_self_selection:
+            await interaction.response.send_message("You can't select yourself as a teammate! (Removed from selection)", ephemeral=True)
+        else:
+            await interaction.response.defer()
+
         self.confirm_button.disabled = False
 
         run_type, team_display = format_team_summary(self.selected_users, interaction.user.name)
         content = f"**Start AROUND THE WORLD**\n\n{run_type}\n{team_display}"
 
-        await interaction.response.defer()
         await interaction.message.edit(content=content, view=self)
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
