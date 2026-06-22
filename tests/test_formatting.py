@@ -10,6 +10,8 @@ from formatting import (
     format_bet_summary,
     format_duration,
     calculate_rdw_reward,
+    format_team_mentions,
+    format_team_summary,
 )
 
 
@@ -237,3 +239,113 @@ class TestCalculateRDWReward:
     def test_just_over_4_hours(self):
         duration = timedelta(hours=4, minutes=0, seconds=1)
         assert calculate_rdw_reward(duration) == 100
+
+
+class TestFormatUsersSingleUser:
+    """Test format_users with single user (newly fixed)."""
+
+    def test_single_user_no_and(self):
+        users = [{"name": "Alice"}]
+        result = format_users(users)
+        assert result == "Alice"
+        assert ", and" not in result
+
+    def test_empty_users(self):
+        users = []
+        result = format_users(users)
+        assert result == ""
+
+    def test_two_users_proper_format(self):
+        users = [{"name": "Alice"}, {"name": "Bob"}]
+        result = format_users(users)
+        assert result == " Alice, and Bob"
+        assert "Alice" in result
+        assert "Bob" in result
+
+
+class TestFormatTeamMentions:
+    """Test format_team_mentions for different team sizes."""
+
+    def test_solo_run(self):
+        result = format_team_mentions("<@123>", [])
+        assert result == "<@123>"
+
+    def test_duo_run(self):
+        result = format_team_mentions("<@123>", ["<@456>"])
+        assert result == "<@123> and <@456>"
+
+    def test_trio_run(self):
+        result = format_team_mentions("<@123>", ["<@456>", "<@789>"])
+        assert result == "<@123>, <@456>, and <@789>"
+
+    def test_solo_with_empty_list(self):
+        result = format_team_mentions("Alice", [])
+        assert result == "Alice"
+
+    def test_duo_formatting(self):
+        result = format_team_mentions("Alice", ["Bob"])
+        assert " and " in result
+        assert "Alice" in result
+        assert "Bob" in result
+
+
+class TestFormatTeamSummary:
+    """Test format_team_summary with mock discord users."""
+
+    def test_solo_run_summary(self):
+        selected_users = []
+        run_type, team_display = format_team_summary(selected_users, "Alice")
+        assert run_type == "👤 Solo Run"
+        assert "Alice" in team_display
+        assert "Team: Alice" == team_display
+
+    def test_duo_run_summary(self):
+        # Mock user objects
+        class MockUser:
+            def __init__(self, name):
+                self.name = name
+
+        selected_users = [MockUser("Bob")]
+        run_type, team_display = format_team_summary(selected_users, "Alice")
+        assert run_type == "👥 Duo Run"
+        assert "Alice" in team_display
+        assert "Bob" in team_display
+        assert "+" in team_display
+
+    def test_trio_run_summary(self):
+        class MockUser:
+            def __init__(self, name):
+                self.name = name
+
+        selected_users = [MockUser("Bob"), MockUser("Charlie")]
+        run_type, team_display = format_team_summary(selected_users, "Alice")
+        assert run_type == "👨‍👩‍👧 Trio Run"
+        assert "Alice" in team_display
+        assert "Bob" in team_display
+        assert "Charlie" in team_display
+        assert "+" in team_display
+
+    def test_team_summary_initiator_name_used(self):
+        selected_users = []
+        _, team_display = format_team_summary(selected_users, "TestUser")
+        assert "TestUser" in team_display
+
+    def test_duo_summary_uses_correct_emoji(self):
+        class MockUser:
+            def __init__(self, name):
+                self.name = name
+
+        selected_users = [MockUser("Bob")]
+        run_type, _ = format_team_summary(selected_users, "Alice")
+        assert "👥" in run_type
+        assert "Duo Run" in run_type
+
+    def test_trio_summary_uses_correct_emoji(self):
+        class MockUser:
+            def __init__(self, name):
+                self.name = name
+
+        selected_users = [MockUser("Bob"), MockUser("Charlie")]
+        run_type, _ = format_team_summary(selected_users, "Alice")
+        assert "👨‍👩‍👧" in run_type
+        assert "Trio Run" in run_type

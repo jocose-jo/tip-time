@@ -5,41 +5,74 @@ import datetime
 
 import db
 from db import fetch_rdw_run_or_create, update_rdw_game, fetch_rdw_run
-from formatting import format_bet_summary, format_duration, calculate_rdw_reward
+from formatting import format_bet_summary, format_duration, calculate_rdw_reward, format_team_mentions, format_team_summary
+
+
+class TeammateSelect(discord.ui.Select):
+    def __init__(self, initiator_id, guild):
+        self.initiator_id = initiator_id
+        self.guild = guild
+        self.selected_users_map = {}
+
+        options = [discord.SelectOption(label="Solo", value="solo", emoji="😈")]
+
+        for member in guild.members:
+            if member.id != initiator_id:
+                display_name = member.display_name or member.name
+                emoji = "🤖" if member.bot else "👤"
+                label = f"{display_name}"
+                options.append(discord.SelectOption(label=label, value=str(member.id), emoji=emoji))
+                self.selected_users_map[str(member.id)] = member
+
+        super().__init__(
+            placeholder="Select your teammates (0-2 partners)",
+            min_values=0,
+            max_values=2,
+            options=options if options else [discord.SelectOption(label="No other users available", value="none", disabled=True)]
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        if self.values and self.values[0] not in ("none", "solo"):
+            self.view.selected_users = [self.selected_users_map[user_id] for user_id in self.values]
+        else:
+            self.view.selected_users = []
+
+        await interaction.response.defer()
+        await self.view.update_team_display(interaction.message, interaction.user.name, self.view.selected_users)
 
 
 class SelectView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, initiator_id, guild):
         super().__init__(timeout=None)
         self.selected_users = []
+        self.initiator_id = initiator_id
+        self.guild = guild
+        self.add_item(TeammateSelect(initiator_id, guild))
 
-    @discord.ui.select(
-        cls=discord.ui.UserSelect,
-        placeholder="Select your 2 partners",
-        min_values=2,
-        max_values=2,
-    )
-    async def user_select(self, interaction: discord.Interaction, select: discord.ui.UserSelect):
-        self.selected_users = select.values
-        self.confirm_button.disabled = False
-        await interaction.response.defer()
-        await interaction.message.edit(view=self)
+    async def update_team_display(self, message, initiator_name, selected_users):
+        run_type, team_display = format_team_summary(selected_users, initiator_name)
+        content = f"**Start AROUND THE WORLD**\n\n{run_type}\n{team_display}"
+        await message.edit(content=content, view=self)
 
-    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green, disabled=True)
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green, row=1)
     async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if len(self.selected_users) != 2:
-            await interaction.response.send_message("Please select exactly 2 partners!", ephemeral=True)
+        if len(self.selected_users) > 2:
+            await interaction.response.send_message("You can select a maximum of 2 partners!", ephemeral=True)
             return
 
-        await interaction.channel.send(f"{interaction.user.mention} selects {self.selected_users[0].mention} and {self.selected_users[1].mention} to start AROUND THE WORLD!")
         reduced_users = [{"id": user.id, "name": user.name} for user in self.selected_users]
         reduced_users.append({"id": interaction.user.id, "name": interaction.user.name})
+
+        selected_mentions = [user.mention for user in self.selected_users]
+        team_mention = format_team_mentions(interaction.user.mention, selected_mentions)
+
+        await interaction.channel.send(f"{team_mention} start(s) AROUND THE WORLD!")
         await interaction.channel.send("Select Game", view=GameView(users=reduced_users))
         await interaction.message.delete()
 
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=1)
     async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.channel.send("Selection canceled.", ephemeral=True)
+        await interaction.response.send_message("Selection canceled.", ephemeral=True)
         await interaction.message.delete()
 
 
@@ -174,6 +207,7 @@ class BetView(discord.ui.View):
         for outcome in bet["outcomes"]:
             self.add_item(OutcomeButton(str(bet["_id"]), outcome, bet["status"]))
 
+        self.add_item(CloseButton(str(bet["_id"]), creator_id, bet["status"]))
         self.add_item(ResolveButton(str(bet["_id"]), creator_id, bet["status"]))
 
 
@@ -186,6 +220,9 @@ class OutcomeButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         bet = db.fetch_bet(self.bet_id)
+        if bet["status"] == "CLOSED":
+            await interaction.response.send_message("No longer receiving new bets!", ephemeral=True)
+            return
         if bet["status"] != "OPEN":
             await interaction.response.send_message("This bet is already settled!", ephemeral=True)
             return
@@ -239,12 +276,35 @@ class WagerModal(discord.ui.Modal):
         await interaction.response.send_message(f"You bet {amount} coins on {self.outcome}!", ephemeral=True)
 
 
+class CloseButton(discord.ui.Button):
+    def __init__(self, bet_id, creator_id, bet_status):
+        super().__init__(label="Close Bets", custom_id=f"close-{bet_id}", style=discord.ButtonStyle.danger)
+        self.bet_id = bet_id
+        self.creator_id = creator_id
+        self.disabled = bet_status != "OPEN"
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.creator_id:
+            await interaction.response.send_message("Only the bet creator can close the bet!", ephemeral=True)
+            return
+
+        bet = db.fetch_bet(self.bet_id)
+        if bet["status"] != "OPEN":
+            await interaction.response.send_message("This bet is already closed or settled!", ephemeral=True)
+            return
+
+        db.close_bet(self.bet_id)
+        bet = db.fetch_bet(self.bet_id)
+        summary = format_bet_summary(bet)
+        await interaction.message.edit(content=f"**{bet['description']}**\n\n{summary}\n\n⛔ **No longer receiving new bets**", view=BetView(bet, self.creator_id))
+
+
 class ResolveButton(discord.ui.Button):
     def __init__(self, bet_id, creator_id, bet_status):
         super().__init__(label="Resolve", custom_id=f"resolve-{bet_id}", style=discord.ButtonStyle.success)
         self.bet_id = bet_id
         self.creator_id = creator_id
-        self.disabled = bet_status != "OPEN"
+        self.disabled = bet_status == "SETTLED"
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.creator_id:
@@ -252,7 +312,7 @@ class ResolveButton(discord.ui.Button):
             return
 
         bet = db.fetch_bet(self.bet_id)
-        if bet["status"] != "OPEN":
+        if bet["status"] == "SETTLED":
             await interaction.response.send_message("This bet is already settled!", ephemeral=True)
             return
 

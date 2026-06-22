@@ -104,15 +104,16 @@ def add_bot_commands(client):
 
     @client.command(name="start", description="Ask the bot to start around the world")
     async def start_around_the_world(ctx):
-        await ctx.channel.send("Start around the world?", view=SelectView())
+        default_message = "**Start AROUND THE WORLD**\n\n👤 Solo Run\nTeam: " + ctx.author.name
+        await ctx.channel.send(default_message, view=SelectView(ctx.author.id, ctx.guild))
 
     @client.command(name="leaderboard", description="Fastest around the world runs, and those who completed it.")
     async def fetch_fastest_rdw_run(ctx):
         query_results = db.fetch_fastest_rdw_runs()
         fastest_rdw_runs = [doc for doc in query_results]
-        formatted_results = [[idx + 1, format_users(run["users"]), format_date_time(run["total_time"]),
+        formatted_results = [[idx + 1, format_users(run["users"]), len(run["users"]), format_date_time(run["total_time"]),
                               format_date_time(run["in_game_time"])] for idx, run in enumerate(fastest_rdw_runs)]
-        leaderboard_table = convert_to_table(["Rank", "Team", "Total Time", "In-Game Time"], formatted_results)
+        leaderboard_table = convert_to_table(["Rank", "Team", "Size", "Total Time", "In-Game Time"], formatted_results)
         await ctx.channel.send(f'```\n{leaderboard_table}\n```')
 
     @client.command(name="horserace", description="Start a horse race")
