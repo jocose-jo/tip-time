@@ -16,8 +16,11 @@ class TeammateSelect(discord.ui.Select):
 
         options = []
         for member in guild.members:
-            if member.id != initiator_id and not member.bot:
-                options.append(discord.SelectOption(label=member.name, value=str(member.id)))
+            if member.id != initiator_id:
+                display_name = member.display_name or member.name
+                emoji = "🤖" if member.bot else "👤"
+                label = f"{display_name}"
+                options.append(discord.SelectOption(label=label, value=str(member.id), emoji=emoji))
                 self.selected_users_map[str(member.id)] = member
 
         super().__init__(
@@ -50,7 +53,7 @@ class SelectView(discord.ui.View):
         content = f"**Start AROUND THE WORLD**\n\n{run_type}\n{team_display}"
         await message.edit(content=content, view=self)
 
-    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green, row=1)
     async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if len(self.selected_users) > 2:
             await interaction.response.send_message("You can select a maximum of 2 partners!", ephemeral=True)
@@ -66,7 +69,7 @@ class SelectView(discord.ui.View):
         await interaction.channel.send("Select Game", view=GameView(users=reduced_users))
         await interaction.message.delete()
 
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=1)
     async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message("Selection canceled.", ephemeral=True)
         await interaction.message.delete()
