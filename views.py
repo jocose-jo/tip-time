@@ -34,7 +34,7 @@ class SelectView(discord.ui.View):
         await interaction.response.defer()
         await interaction.message.edit(content=content, view=self)
 
-    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green, disabled=True)
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
     async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if len(self.selected_users) > 2:
             await interaction.response.send_message("You can select a maximum of 2 partners!", ephemeral=True)
@@ -46,13 +46,13 @@ class SelectView(discord.ui.View):
         selected_mentions = [user.mention for user in self.selected_users]
         team_mention = format_team_mentions(interaction.user.mention, selected_mentions)
 
-        await interaction.channel.send(f"{team_mention} start AROUND THE WORLD!")
+        await interaction.channel.send(f"{team_mention} start(s) AROUND THE WORLD!")
         await interaction.channel.send("Select Game", view=GameView(users=reduced_users))
         await interaction.message.delete()
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
     async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.channel.send("Selection canceled.", ephemeral=True)
+        await interaction.response.send_message("Selection canceled.", ephemeral=True)
         await interaction.message.delete()
 
 
