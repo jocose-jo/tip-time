@@ -15,12 +15,19 @@ class TeammateSelect(discord.ui.Select):
         self.selected_users_map = {}
 
         options = [discord.SelectOption(label="Solo", value="solo", emoji="😈")]
+        MAX_OPTIONS = 25  # Discord Select limit
 
         try:
             if guild and hasattr(guild, 'members'):
+                member_count = 0
                 for member in guild.members:
+                    if len(options) >= MAX_OPTIONS:
+                        print(f"Reached Discord Select option limit (25). Total members available: {member_count}")
+                        break
+
                     try:
                         if member.id != initiator_id:
+                            member_count += 1
                             display_name = member.display_name or member.name
                             emoji = "🤖" if member.bot else "👤"
                             label = f"{display_name}"
@@ -29,6 +36,8 @@ class TeammateSelect(discord.ui.Select):
                     except Exception as e:
                         print(f"Error processing member: {e}")
                         continue
+
+                print(f"TeammateSelect created with {len(options)} options ({len(self.selected_users_map)} users)")
         except Exception as e:
             print(f"Error accessing guild members: {e}")
             # Fallback - show message that members couldn't be loaded

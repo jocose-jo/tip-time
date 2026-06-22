@@ -104,8 +104,43 @@ def add_bot_commands(client):
 
     @client.command(name="start", description="Ask the bot to start around the world")
     async def start_around_the_world(ctx):
-        default_message = "**Start AROUND THE WORLD**\n\n👤 Solo Run\nTeam: " + ctx.author.name
-        await ctx.channel.send(default_message, view=SelectView(ctx.author.id, ctx.guild))
+        try:
+            if not ctx.guild:
+                await ctx.send("This command can only be used in a server!", ephemeral=True)
+                return
+
+            print(f"[START] Command triggered by {ctx.author} in {ctx.guild.name}")
+            print(f"[START] Guild has {len(ctx.guild.members)} members")
+
+            default_message = "**Start AROUND THE WORLD**\n\n👤 Solo Run\nTeam: " + ctx.author.name
+
+            try:
+                view = SelectView(ctx.author.id, ctx.guild)
+                print(f"[START] SelectView created successfully")
+            except Exception as e:
+                print(f"[START] Error creating SelectView: {e}")
+                await ctx.send(f"Error creating team selector: {e}", ephemeral=True)
+                return
+
+            try:
+                await ctx.channel.send(default_message, view=view)
+                print(f"[START] Message sent successfully")
+            except discord.Forbidden:
+                print(f"[START] Permission denied - cannot send messages in {ctx.channel}")
+                await ctx.send("I don't have permission to send messages in that channel!", ephemeral=True)
+            except discord.HTTPException as e:
+                print(f"[START] HTTP error: {e}")
+                await ctx.send(f"Error sending message: {e}", ephemeral=True)
+            except Exception as e:
+                print(f"[START] Unexpected error sending message: {e}")
+                await ctx.send(f"An unexpected error occurred: {e}", ephemeral=True)
+
+        except Exception as e:
+            print(f"[START] Unexpected error in start_around_the_world: {e}")
+            try:
+                await ctx.send(f"An unexpected error occurred: {e}", ephemeral=True)
+            except:
+                pass
 
     @client.command(name="leaderboard", description="Fastest around the world runs, and those who completed it.")
     async def fetch_fastest_rdw_run(ctx):
