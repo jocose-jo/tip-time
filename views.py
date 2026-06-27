@@ -185,7 +185,9 @@ class CreateBetModal(discord.ui.Modal):
             await interaction.response.send_message("You need at least 2 outcomes!", ephemeral=True)
             return
 
-        bet = db.create_bet(interaction.user.id, interaction.channel_id, description, outcomes)
+        creator_name = interaction.user.display_name or interaction.user.name
+        db.find_or_create_user(interaction.user, creator_name)
+        bet = db.create_bet(interaction.user.id, creator_name, interaction.channel_id, description, outcomes)
         summary = format_bet_summary(bet)
         await interaction.response.send_message(
             f"**{description}**\n\n{summary}",
@@ -235,8 +237,10 @@ class OutcomeButton(discord.ui.Button):
             await interaction.response.send_message(f"You've already bet on {existing_outcome}!", ephemeral=True)
             return
 
+        username = interaction.user.display_name or interaction.user.name
         user_coins = db.get_user_coins(interaction.user.id)
-        await interaction.response.send_modal(WagerModal(self.bet_id, self.outcome, user_coins, interaction.user.id, interaction.user.name, interaction.message))
+        db.find_or_create_user(interaction.user, username)
+        await interaction.response.send_modal(WagerModal(self.bet_id, self.outcome, user_coins, interaction.user.id, username, interaction.message))
 
 
 class WagerModal(discord.ui.Modal):

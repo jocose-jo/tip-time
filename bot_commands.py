@@ -150,6 +150,8 @@ def add_bot_commands(client):
 
     @client.command(name="balance", description="Check your coin balance")
     async def check_balance(ctx):
+        username = ctx.author.display_name or ctx.author.name
+        db.find_or_create_user(ctx.author, username)
         coins = db.get_user_coins(ctx.author.id)
         await ctx.channel.send(f"<@{ctx.author.id}> has **{coins}** coins")
 
@@ -164,6 +166,8 @@ def add_bot_commands(client):
             await ctx.channel.send("Amount must be positive!")
             return
 
+        username = user.display_name or user.name
+        db.find_or_create_user(user, username)
         db.update_user_coins(user.id, amount)
         new_balance = db.get_user_coins(user.id)
         await ctx.channel.send(f"Gave {amount} to <@{user.id}>. New balance: {new_balance}")

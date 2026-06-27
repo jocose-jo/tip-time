@@ -41,11 +41,14 @@ def fetch_user(user_id):
     return user_collection.find_one(user_query)
 
 
-def find_or_create_user(user):
+def find_or_create_user(user, username=None):
     user_id = user.id
     user_query = {"_id": user_id}
     if user_collection.count_documents(user_query) == 0:
         user_id = save_new_user(user)
+    else:
+        if username:
+            user_collection.update_one(user_query, {'$set': {'name': username}})
     user = fetch_user(user_id)
     return user
 
@@ -174,9 +177,10 @@ def update_user_coins(user_id, delta):
     return new_coins
 
 
-def create_bet(creator_id, channel_id, description, outcomes):
+def create_bet(creator_id, creator_name, channel_id, description, outcomes):
     new_bet = {
         "creator_id": creator_id,
+        "creator_name": creator_name,
         "channel_id": channel_id,
         "message_id": None,
         "description": description,
