@@ -106,9 +106,14 @@ class GameButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         assert self.view is not None
+        run = fetch_rdw_run(self.run_id)
+        user_ids = [user["id"] for user in run["users"]]
+        if interaction.user.id not in user_ids:
+            await interaction.response.send_message("Only runners can start games!", ephemeral=True)
+            return
+
         if self.status == "PENDING":
             game_start_time = datetime.datetime.now()
-            run = fetch_rdw_run(self.run_id)
             elapsed = game_start_time - run["start"]
             team_info = format_run_team(run["users"])
             game_attributes = {"_id": self.run_id, "name": self.name, "status": self.status, "start": game_start_time, "end": self.end}
@@ -129,9 +134,14 @@ class StartView(discord.ui.View):
     @discord.ui.button(label="Finished!", row=0, style=discord.ButtonStyle.primary, emoji="✅")
     async def finish_button_callback(self, interaction: discord.Interaction, button):
         # button.custom_id = f'finish-{self.attributes["_id"]}'
+        run = fetch_rdw_run(self.attributes["_id"])
+        user_ids = [user["id"] for user in run["users"]]
+        if interaction.user.id not in user_ids:
+            await interaction.response.send_message("Only runners can finish games!", ephemeral=True)
+            return
+
         end_time = datetime.datetime.now()
         total_time = end_time - self.attributes["start"]
-        run = fetch_rdw_run(self.attributes["_id"])
         team_info = format_run_team(run["users"])
         total_elapsed = end_time - run["start"]
         was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "COMPLETE", end_time)
@@ -158,6 +168,12 @@ class StartView(discord.ui.View):
     @discord.ui.button(label="Cancel!", row=0, style=discord.ButtonStyle.secondary, emoji="❌")
     async def cancel_button_callback(self, interaction: discord.Interaction, button):
         # button.custom_id = f'cancel-{self.attributes["_id"]}'
+        run = fetch_rdw_run(self.attributes["_id"])
+        user_ids = [user["id"] for user in run["users"]]
+        if interaction.user.id not in user_ids:
+            await interaction.response.send_message("Only runners can cancel games!", ephemeral=True)
+            return
+
         button.label = "CANCELED"
         was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "CANCELED", datetime.datetime.now())
         if was_updated:
