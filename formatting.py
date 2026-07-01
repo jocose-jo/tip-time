@@ -113,3 +113,27 @@ def format_bet_summary(bet):
         bettor_names = ", ".join([w["username"] for w in wagers]) if wagers else "No bets"
         outcomes_summary.append(f"{outcome}: {total} coins ({bettor_names})")
     return "\n".join(outcomes_summary)
+
+
+def format_run_team(users):
+    if len(users) == 0:
+        return "👤"
+    if len(users) == 1:
+        return f"👤 {users[0]['name']}"
+    elif len(users) == 2:
+        return f"👥 {users[0]['name']} & {users[1]['name']}"
+    else:  # 3+ users
+        names = ", ".join([u['name'] for u in users[:-1]]) + f", & {users[-1]['name']}"
+        return f"👨‍👩‍👧 {names}"
+
+
+def format_game_splits(run_data):
+    completed_games = [g for g in run_data["game_data"] if g["status"] == "COMPLETE"]
+    if not completed_games:
+        return ""
+
+    splits_content = "\n\n**Game Splits:**\n"
+    for game in completed_games:
+        game_time = game["end"] - game["start"]
+        splits_content += f"• {game['name']}: {format_duration(game_time)}\n"
+    return splits_content

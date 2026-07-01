@@ -5,7 +5,7 @@ import datetime
 
 import db
 from db import fetch_rdw_run_or_create, update_rdw_game, fetch_rdw_run
-from formatting import format_bet_summary, format_duration, calculate_rdw_reward, format_team_mentions, format_team_summary
+from formatting import format_bet_summary, format_duration, calculate_rdw_reward, format_team_mentions, format_team_summary, format_run_team, format_game_splits
 
 
 class TeammateSelect(discord.ui.Select):
@@ -68,9 +68,13 @@ class SelectView(discord.ui.View):
 
         selected_mentions = [user.mention for user in self.selected_users]
         team_mention = format_team_mentions(interaction.user.mention, selected_mentions)
+        team_info = format_run_team(reduced_users)
 
         await interaction.channel.send(f"{team_mention} start(s) AROUND THE WORLD!")
-        await interaction.channel.send("Select Game", view=GameView(users=reduced_users))
+        game_view = GameView(users=reduced_users)
+        splits_content = format_game_splits(game_view.run_attributes)
+        message_content = f"{team_info}{splits_content}" if splits_content else f"{team_info}\n\n**Select a Game:**"
+        await interaction.channel.send(message_content, view=game_view)
         await interaction.message.delete()
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=1)
@@ -80,20 +84,23 @@ class SelectView(discord.ui.View):
 
 
 class GameView(discord.ui.View):
-    def __init__(self, run_id=None, users=[]):
+    def __init__(self, run_id=None, users=[], run_attributes=None):
         super().__init__(timeout=None)
-        self.run_attributes = fetch_rdw_run_or_create(run_id, users, datetime.datetime.now())
+        if run_attributes:
+            self.run_attributes = run_attributes
+        else:
+            self.run_attributes = fetch_rdw_run_or_create(run_id, users, datetime.datetime.now())
 
         # populate view with buttons fetched from db
         for i, game in enumerate(self.run_attributes["game_data"]):
             runs_id = self.run_attributes["_id"]
             button_id = runs_id + i
             row = i // 5
-            self.add_item(GameButton(button_id, runs_id, game, row))
+            self.add_item(GameButton(button_id, runs_id, game, row, self.run_attributes))
 
 
 class GameButton(discord.ui.Button):
-    def __init__(self, button_id, run_id, game, row=0):
+    def __init__(self, button_id, run_id, game, row=0, run_attributes=None):
         super().__init__(label=game["name"], custom_id=f"{game['name']}-{button_id}", style=discord.ButtonStyle.primary, row=row)
         # initialize values to keep track of button state
         self.id = button_id
@@ -103,33 +110,52 @@ class GameButton(discord.ui.Button):
         self.start = game["start"]
         self.end = game["end"]
         self.disabled = game["status"] == "COMPLETE" # disable if game is complete
+        self.run_attributes = run_attributes
 
     async def callback(self, interaction: discord.Interaction):
         assert self.view is not None
+        run = self.run_attributes or fetch_rdw_run(self.run_id)
+        user_ids = [user["id"] for user in run["users"]]
+        if interaction.user.id not in user_ids:
+            await interaction.response.send_message("Only runners can start games!", ephemeral=True)
+            return
+
         if self.status == "PENDING":
-            game_attributes = {"_id": self.run_id, "name": self.name, "status": self.status, "start": datetime.datetime.now(), "end": self.end}
-            was_updated, current_status = update_rdw_game(self.run_id, self.name, "IN-PROGRESS", datetime.datetime.now())
+            game_start_time = datetime.datetime.now()
+            team_info = format_run_team(run["users"])
+            game_attributes = {"_id": self.run_id, "name": self.name, "status": self.status, "start": game_start_time, "end": self.end}
+            was_updated, current_status = update_rdw_game(self.run_id, self.name, "IN-PROGRESS", game_start_time)
             if was_updated:
-                message = f"Current Game: {self.name} - started at: {game_attributes['start'].astimezone(timezone('US/Pacific')).strftime('%I:%M %p')}"
-                await interaction.channel.send(message, view=StartView(game_attributes))
+                message = f"**Current Game: {self.name}**\n{team_info}\nStarted at: {game_start_time.astimezone(timezone('US/Pacific')).strftime('%I:%M %p')}"
+                await interaction.channel.send(message, view=StartView(game_attributes, run))
                 await interaction.message.delete()
             else:
                 await interaction.response.send_message(f"Game is {current_status}")
 
 
 class StartView(discord.ui.View):
-    def __init__(self, attributes):
+    def __init__(self, attributes, run=None):
         super().__init__(timeout=None)
         self.attributes = attributes
+        self.run = run
 
     @discord.ui.button(label="Finished!", row=0, style=discord.ButtonStyle.primary, emoji="✅")
     async def finish_button_callback(self, interaction: discord.Interaction, button):
         # button.custom_id = f'finish-{self.attributes["_id"]}'
+        run = self.run or fetch_rdw_run(self.attributes["_id"])
+        user_ids = [user["id"] for user in run["users"]]
+        if interaction.user.id not in user_ids:
+            await interaction.response.send_message("Only runners can finish games!", ephemeral=True)
+            return
+
         end_time = datetime.datetime.now()
         total_time = end_time - self.attributes["start"]
+        team_info = format_run_team(run["users"])
         was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "COMPLETE", end_time)
         if was_updated:
-            game_view_message = await interaction.channel.send(f"{self.attributes['name']} completed in {format_duration(total_time)}", view=GameView(run_id=self.attributes["_id"]))
+            updated_run = fetch_rdw_run(self.attributes["_id"])
+            splits_content = format_game_splits(updated_run)
+            game_view_message = await interaction.channel.send(f"{team_info}\n**{self.attributes['name']}** completed in {format_duration(total_time)}{splits_content}", view=GameView(run_id=self.attributes["_id"], run_attributes=updated_run))
             await interaction.message.delete()
             is_run_complete, run_total_time = db.check_if_run_complete(self.attributes["_id"], end_time)
             if is_run_complete:
@@ -137,7 +163,7 @@ class StartView(discord.ui.View):
                 db.award_rdw_completion_coins(self.attributes["_id"])
                 reward = calculate_rdw_reward(run["end"] - run["start"])
 
-                splits_message = f"AROUND THE WORLD COMPLETED! Total time: {format_duration(run_total_time)}\n\n**Game Splits:**\n"
+                splits_message = f"{team_info} has completed AROUND THE WORLD!\nTotal time: {format_duration(run_total_time)}\n\n**Game Splits:**\n"
                 for game in run["game_data"]:
                     if game["status"] == "COMPLETE":
                         game_time = game["end"] - game["start"]
@@ -151,11 +177,20 @@ class StartView(discord.ui.View):
     @discord.ui.button(label="Cancel!", row=0, style=discord.ButtonStyle.secondary, emoji="❌")
     async def cancel_button_callback(self, interaction: discord.Interaction, button):
         # button.custom_id = f'cancel-{self.attributes["_id"]}'
+        run = self.run or fetch_rdw_run(self.attributes["_id"])
+        user_ids = [user["id"] for user in run["users"]]
+        if interaction.user.id not in user_ids:
+            await interaction.response.send_message("Only runners can cancel games!", ephemeral=True)
+            return
+
         button.label = "CANCELED"
         was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "CANCELED", datetime.datetime.now())
         if was_updated:
-            await interaction.channel.send(f"{self.attributes['name']} has been canceled")
-            await interaction.channel.send(view=GameView(run_id=self.attributes["_id"]))
+            updated_run = fetch_rdw_run(self.attributes["_id"])
+            team_info = format_run_team(updated_run["users"])
+            splits_content = format_game_splits(updated_run)
+            await interaction.response.send_message(f"{self.attributes['name']} has been canceled", ephemeral=True)
+            await interaction.channel.send(f"{team_info}{splits_content}", view=GameView(run_id=self.attributes["_id"], run_attributes=updated_run))
             await interaction.message.delete()
         else:
             await interaction.response.send_message(f"Game is {current_status}")
@@ -185,7 +220,9 @@ class CreateBetModal(discord.ui.Modal):
             await interaction.response.send_message("You need at least 2 outcomes!", ephemeral=True)
             return
 
-        bet = db.create_bet(interaction.user.id, interaction.channel_id, description, outcomes)
+        creator_name = interaction.user.display_name or interaction.user.name
+        db.find_or_create_user(interaction.user, creator_name)
+        bet = db.create_bet(interaction.user.id, creator_name, interaction.channel_id, description, outcomes)
         summary = format_bet_summary(bet)
         await interaction.response.send_message(
             f"**{description}**\n\n{summary}",
@@ -235,8 +272,10 @@ class OutcomeButton(discord.ui.Button):
             await interaction.response.send_message(f"You've already bet on {existing_outcome}!", ephemeral=True)
             return
 
+        username = interaction.user.display_name or interaction.user.name
         user_coins = db.get_user_coins(interaction.user.id)
-        await interaction.response.send_modal(WagerModal(self.bet_id, self.outcome, user_coins, interaction.user.id, interaction.user.name, interaction.message))
+        db.find_or_create_user(interaction.user, username)
+        await interaction.response.send_modal(WagerModal(self.bet_id, self.outcome, user_coins, interaction.user.id, username, interaction.message))
 
 
 class WagerModal(discord.ui.Modal):
