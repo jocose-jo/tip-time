@@ -144,7 +144,7 @@ class StartView(discord.ui.View):
                 db.award_rdw_completion_coins(self.attributes["_id"])
                 reward = calculate_rdw_reward(run["end"] - run["start"])
 
-                splits_message = f"AROUND THE WORLD COMPLETED! {team_info}\nTotal time: {format_duration(run_total_time)}\n\n**Game Splits:**\n"
+                splits_message = f"{team_info} has completed AROUND THE WORLD!\nTotal time: {format_duration(run_total_time)}\n\n**Game Splits:**\n"
                 for game in run["game_data"]:
                     if game["status"] == "COMPLETE":
                         game_time = game["end"] - game["start"]
