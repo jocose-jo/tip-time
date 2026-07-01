@@ -5,7 +5,7 @@ import datetime
 
 import db
 from db import fetch_rdw_run_or_create, update_rdw_game, fetch_rdw_run
-from formatting import format_bet_summary, format_duration, calculate_rdw_reward, format_team_mentions, format_team_summary
+from formatting import format_bet_summary, format_duration, calculate_rdw_reward, format_team_mentions, format_team_summary, format_run_team
 
 
 class TeammateSelect(discord.ui.Select):
@@ -107,10 +107,14 @@ class GameButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         assert self.view is not None
         if self.status == "PENDING":
-            game_attributes = {"_id": self.run_id, "name": self.name, "status": self.status, "start": datetime.datetime.now(), "end": self.end}
-            was_updated, current_status = update_rdw_game(self.run_id, self.name, "IN-PROGRESS", datetime.datetime.now())
+            game_start_time = datetime.datetime.now()
+            run = fetch_rdw_run(self.run_id)
+            elapsed = game_start_time - run["start"]
+            team_info = format_run_team(run["users"])
+            game_attributes = {"_id": self.run_id, "name": self.name, "status": self.status, "start": game_start_time, "end": self.end}
+            was_updated, current_status = update_rdw_game(self.run_id, self.name, "IN-PROGRESS", game_start_time)
             if was_updated:
-                message = f"Current Game: {self.name} - started at: {game_attributes['start'].astimezone(timezone('US/Pacific')).strftime('%I:%M %p')}"
+                message = f"**Current Game: {self.name}**\n{team_info}\nCurrent Time: {format_duration(elapsed)}\nStarted at: {game_start_time.astimezone(timezone('US/Pacific')).strftime('%I:%M %p')}"
                 await interaction.channel.send(message, view=StartView(game_attributes))
                 await interaction.message.delete()
             else:
@@ -127,9 +131,12 @@ class StartView(discord.ui.View):
         # button.custom_id = f'finish-{self.attributes["_id"]}'
         end_time = datetime.datetime.now()
         total_time = end_time - self.attributes["start"]
+        run = fetch_rdw_run(self.attributes["_id"])
+        team_info = format_run_team(run["users"])
+        total_elapsed = end_time - run["start"]
         was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "COMPLETE", end_time)
         if was_updated:
-            game_view_message = await interaction.channel.send(f"{self.attributes['name']} completed in {format_duration(total_time)}", view=GameView(run_id=self.attributes["_id"]))
+            game_view_message = await interaction.channel.send(f"**{self.attributes['name']}** completed in {format_duration(total_time)}\n{team_info}\nTotal Elapsed: {format_duration(total_elapsed)}", view=GameView(run_id=self.attributes["_id"]))
             await interaction.message.delete()
             is_run_complete, run_total_time = db.check_if_run_complete(self.attributes["_id"], end_time)
             if is_run_complete:
@@ -137,7 +144,7 @@ class StartView(discord.ui.View):
                 db.award_rdw_completion_coins(self.attributes["_id"])
                 reward = calculate_rdw_reward(run["end"] - run["start"])
 
-                splits_message = f"AROUND THE WORLD COMPLETED! Total time: {format_duration(run_total_time)}\n\n**Game Splits:**\n"
+                splits_message = f"AROUND THE WORLD COMPLETED! {team_info}\nTotal time: {format_duration(run_total_time)}\n\n**Game Splits:**\n"
                 for game in run["game_data"]:
                     if game["status"] == "COMPLETE":
                         game_time = game["end"] - game["start"]
