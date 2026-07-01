@@ -151,7 +151,8 @@ class StartView(discord.ui.View):
         total_elapsed = end_time - run["start"]
         was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "COMPLETE", end_time)
         if was_updated:
-            game_view_message = await interaction.channel.send(f"**{self.attributes['name']}** completed in {format_duration(total_time)}\n{team_info}\nTotal Elapsed: {format_duration(total_elapsed)}", view=GameView(run_id=self.attributes["_id"], run_attributes=run))
+            updated_run = fetch_rdw_run(self.attributes["_id"])
+            game_view_message = await interaction.channel.send(f"**{self.attributes['name']}** completed in {format_duration(total_time)}\n{team_info}\nTotal Elapsed: {format_duration(total_elapsed)}", view=GameView(run_id=self.attributes["_id"], run_attributes=updated_run))
             await interaction.message.delete()
             is_run_complete, run_total_time = db.check_if_run_complete(self.attributes["_id"], end_time)
             if is_run_complete:
@@ -182,8 +183,9 @@ class StartView(discord.ui.View):
         button.label = "CANCELED"
         was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "CANCELED", datetime.datetime.now())
         if was_updated:
+            updated_run = fetch_rdw_run(self.attributes["_id"])
             await interaction.channel.send(f"{self.attributes['name']} has been canceled")
-            await interaction.channel.send(view=GameView(run_id=self.attributes["_id"], run_attributes=run))
+            await interaction.channel.send(view=GameView(run_id=self.attributes["_id"], run_attributes=updated_run))
             await interaction.message.delete()
         else:
             await interaction.response.send_message(f"Game is {current_status}")
