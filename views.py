@@ -68,9 +68,17 @@ class SelectView(discord.ui.View):
 
         selected_mentions = [user.mention for user in self.selected_users]
         team_mention = format_team_mentions(interaction.user.mention, selected_mentions)
+        team_info = format_run_team(reduced_users)
 
         await interaction.channel.send(f"{team_mention} start(s) AROUND THE WORLD!")
-        await interaction.channel.send("Select Game", view=GameView(users=reduced_users))
+        game_view = GameView(users=reduced_users)
+        splits_content = f"\n\n**Game Splits:**\n"
+        for game in game_view.run_attributes["game_data"]:
+            if game["status"] == "COMPLETE":
+                game_time = game["end"] - game["start"]
+                splits_content += f"• {game['name']}: {format_duration(game_time)}\n"
+        message_content = f"{team_info}{splits_content}" if any(g["status"] == "COMPLETE" for g in game_view.run_attributes["game_data"]) else f"{team_info}\n\n**Select a Game:**"
+        await interaction.channel.send(message_content, view=game_view)
         await interaction.message.delete()
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=1)
