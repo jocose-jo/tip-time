@@ -187,8 +187,14 @@ class StartView(discord.ui.View):
         was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "CANCELED", datetime.datetime.now())
         if was_updated:
             updated_run = fetch_rdw_run(self.attributes["_id"])
+            team_info = format_run_team(updated_run["users"])
+            splits_content = f"\n\n**Game Splits:**\n"
+            for game in updated_run["game_data"]:
+                if game["status"] == "COMPLETE":
+                    game_time = game["end"] - game["start"]
+                    splits_content += f"• {game['name']}: {format_duration(game_time)}\n"
             await interaction.response.send_message(f"{self.attributes['name']} has been canceled", ephemeral=True)
-            await interaction.channel.send(view=GameView(run_id=self.attributes["_id"], run_attributes=updated_run))
+            await interaction.channel.send(f"{team_info}{splits_content}", view=GameView(run_id=self.attributes["_id"], run_attributes=updated_run))
             await interaction.message.delete()
         else:
             await interaction.response.send_message(f"Game is {current_status}")
