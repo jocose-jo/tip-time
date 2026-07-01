@@ -125,3 +125,15 @@ def format_run_team(users):
     else:  # 3+ users
         names = ", ".join([u['name'] for u in users[:-1]]) + f", & {users[-1]['name']}"
         return f"👨‍👩‍👧 {names}"
+
+
+def format_game_splits(run_data):
+    completed_games = [g for g in run_data["game_data"] if g["status"] == "COMPLETE"]
+    if not completed_games:
+        return ""
+
+    splits_content = "\n\n**Game Splits:**\n"
+    for game in completed_games:
+        game_time = game["end"] - game["start"]
+        splits_content += f"• {game['name']}: {format_duration(game_time)}\n"
+    return splits_content

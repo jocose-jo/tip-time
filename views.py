@@ -5,7 +5,7 @@ import datetime
 
 import db
 from db import fetch_rdw_run_or_create, update_rdw_game, fetch_rdw_run
-from formatting import format_bet_summary, format_duration, calculate_rdw_reward, format_team_mentions, format_team_summary, format_run_team
+from formatting import format_bet_summary, format_duration, calculate_rdw_reward, format_team_mentions, format_team_summary, format_run_team, format_game_splits
 
 
 class TeammateSelect(discord.ui.Select):
@@ -72,12 +72,8 @@ class SelectView(discord.ui.View):
 
         await interaction.channel.send(f"{team_mention} start(s) AROUND THE WORLD!")
         game_view = GameView(users=reduced_users)
-        splits_content = f"\n\n**Game Splits:**\n"
-        for game in game_view.run_attributes["game_data"]:
-            if game["status"] == "COMPLETE":
-                game_time = game["end"] - game["start"]
-                splits_content += f"• {game['name']}: {format_duration(game_time)}\n"
-        message_content = f"{team_info}{splits_content}" if any(g["status"] == "COMPLETE" for g in game_view.run_attributes["game_data"]) else f"{team_info}\n\n**Select a Game:**"
+        splits_content = format_game_splits(game_view.run_attributes)
+        message_content = f"{team_info}{splits_content}" if splits_content else f"{team_info}\n\n**Select a Game:**"
         await interaction.channel.send(message_content, view=game_view)
         await interaction.message.delete()
 
@@ -158,11 +154,7 @@ class StartView(discord.ui.View):
         was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "COMPLETE", end_time)
         if was_updated:
             updated_run = fetch_rdw_run(self.attributes["_id"])
-            splits_content = f"\n\n**Game Splits:**\n"
-            for game in updated_run["game_data"]:
-                if game["status"] == "COMPLETE":
-                    game_time = game["end"] - game["start"]
-                    splits_content += f"• {game['name']}: {format_duration(game_time)}\n"
+            splits_content = format_game_splits(updated_run)
             game_view_message = await interaction.channel.send(f"{team_info}\n**{self.attributes['name']}** completed in {format_duration(total_time)}{splits_content}", view=GameView(run_id=self.attributes["_id"], run_attributes=updated_run))
             await interaction.message.delete()
             is_run_complete, run_total_time = db.check_if_run_complete(self.attributes["_id"], end_time)
@@ -196,11 +188,7 @@ class StartView(discord.ui.View):
         if was_updated:
             updated_run = fetch_rdw_run(self.attributes["_id"])
             team_info = format_run_team(updated_run["users"])
-            splits_content = f"\n\n**Game Splits:**\n"
-            for game in updated_run["game_data"]:
-                if game["status"] == "COMPLETE":
-                    game_time = game["end"] - game["start"]
-                    splits_content += f"• {game['name']}: {format_duration(game_time)}\n"
+            splits_content = format_game_splits(updated_run)
             await interaction.response.send_message(f"{self.attributes['name']} has been canceled", ephemeral=True)
             await interaction.channel.send(f"{team_info}{splits_content}", view=GameView(run_id=self.attributes["_id"], run_attributes=updated_run))
             await interaction.message.delete()
