@@ -80,20 +80,23 @@ class SelectView(discord.ui.View):
 
 
 class GameView(discord.ui.View):
-    def __init__(self, run_id=None, users=[]):
+    def __init__(self, run_id=None, users=[], run_attributes=None):
         super().__init__(timeout=None)
-        self.run_attributes = fetch_rdw_run_or_create(run_id, users, datetime.datetime.now())
+        if run_attributes:
+            self.run_attributes = run_attributes
+        else:
+            self.run_attributes = fetch_rdw_run_or_create(run_id, users, datetime.datetime.now())
 
         # populate view with buttons fetched from db
         for i, game in enumerate(self.run_attributes["game_data"]):
             runs_id = self.run_attributes["_id"]
             button_id = runs_id + i
             row = i // 5
-            self.add_item(GameButton(button_id, runs_id, game, row))
+            self.add_item(GameButton(button_id, runs_id, game, row, self.run_attributes))
 
 
 class GameButton(discord.ui.Button):
-    def __init__(self, button_id, run_id, game, row=0):
+    def __init__(self, button_id, run_id, game, row=0, run_attributes=None):
         super().__init__(label=game["name"], custom_id=f"{game['name']}-{button_id}", style=discord.ButtonStyle.primary, row=row)
         # initialize values to keep track of button state
         self.id = button_id
@@ -103,10 +106,11 @@ class GameButton(discord.ui.Button):
         self.start = game["start"]
         self.end = game["end"]
         self.disabled = game["status"] == "COMPLETE" # disable if game is complete
+        self.run_attributes = run_attributes
 
     async def callback(self, interaction: discord.Interaction):
         assert self.view is not None
-        run = fetch_rdw_run(self.run_id)
+        run = self.run_attributes or fetch_rdw_run(self.run_id)
         user_ids = [user["id"] for user in run["users"]]
         if interaction.user.id not in user_ids:
             await interaction.response.send_message("Only runners can start games!", ephemeral=True)
@@ -120,21 +124,22 @@ class GameButton(discord.ui.Button):
             was_updated, current_status = update_rdw_game(self.run_id, self.name, "IN-PROGRESS", game_start_time)
             if was_updated:
                 message = f"**Current Game: {self.name}**\n{team_info}\nCurrent Time: {format_duration(elapsed)}\nStarted at: {game_start_time.astimezone(timezone('US/Pacific')).strftime('%I:%M %p')}"
-                await interaction.channel.send(message, view=StartView(game_attributes))
+                await interaction.channel.send(message, view=StartView(game_attributes, run))
                 await interaction.message.delete()
             else:
                 await interaction.response.send_message(f"Game is {current_status}")
 
 
 class StartView(discord.ui.View):
-    def __init__(self, attributes):
+    def __init__(self, attributes, run=None):
         super().__init__(timeout=None)
         self.attributes = attributes
+        self.run = run
 
     @discord.ui.button(label="Finished!", row=0, style=discord.ButtonStyle.primary, emoji="✅")
     async def finish_button_callback(self, interaction: discord.Interaction, button):
         # button.custom_id = f'finish-{self.attributes["_id"]}'
-        run = fetch_rdw_run(self.attributes["_id"])
+        run = self.run or fetch_rdw_run(self.attributes["_id"])
         user_ids = [user["id"] for user in run["users"]]
         if interaction.user.id not in user_ids:
             await interaction.response.send_message("Only runners can finish games!", ephemeral=True)
@@ -146,7 +151,7 @@ class StartView(discord.ui.View):
         total_elapsed = end_time - run["start"]
         was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "COMPLETE", end_time)
         if was_updated:
-            game_view_message = await interaction.channel.send(f"**{self.attributes['name']}** completed in {format_duration(total_time)}\n{team_info}\nTotal Elapsed: {format_duration(total_elapsed)}", view=GameView(run_id=self.attributes["_id"]))
+            game_view_message = await interaction.channel.send(f"**{self.attributes['name']}** completed in {format_duration(total_time)}\n{team_info}\nTotal Elapsed: {format_duration(total_elapsed)}", view=GameView(run_id=self.attributes["_id"], run_attributes=run))
             await interaction.message.delete()
             is_run_complete, run_total_time = db.check_if_run_complete(self.attributes["_id"], end_time)
             if is_run_complete:
@@ -168,7 +173,7 @@ class StartView(discord.ui.View):
     @discord.ui.button(label="Cancel!", row=0, style=discord.ButtonStyle.secondary, emoji="❌")
     async def cancel_button_callback(self, interaction: discord.Interaction, button):
         # button.custom_id = f'cancel-{self.attributes["_id"]}'
-        run = fetch_rdw_run(self.attributes["_id"])
+        run = self.run or fetch_rdw_run(self.attributes["_id"])
         user_ids = [user["id"] for user in run["users"]]
         if interaction.user.id not in user_ids:
             await interaction.response.send_message("Only runners can cancel games!", ephemeral=True)
@@ -178,7 +183,7 @@ class StartView(discord.ui.View):
         was_updated, current_status = update_rdw_game(self.attributes["_id"], self.attributes["name"], "CANCELED", datetime.datetime.now())
         if was_updated:
             await interaction.channel.send(f"{self.attributes['name']} has been canceled")
-            await interaction.channel.send(view=GameView(run_id=self.attributes["_id"]))
+            await interaction.channel.send(view=GameView(run_id=self.attributes["_id"], run_attributes=run))
             await interaction.message.delete()
         else:
             await interaction.response.send_message(f"Game is {current_status}")
