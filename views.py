@@ -118,12 +118,11 @@ class GameButton(discord.ui.Button):
 
         if self.status == "PENDING":
             game_start_time = datetime.datetime.now()
-            elapsed = game_start_time - run["start"]
             team_info = format_run_team(run["users"])
             game_attributes = {"_id": self.run_id, "name": self.name, "status": self.status, "start": game_start_time, "end": self.end}
             was_updated, current_status = update_rdw_game(self.run_id, self.name, "IN-PROGRESS", game_start_time)
             if was_updated:
-                message = f"**Current Game: {self.name}**\n{team_info}\nCurrent Time: {format_duration(elapsed)}\nStarted at: {game_start_time.astimezone(timezone('US/Pacific')).strftime('%I:%M %p')}"
+                message = f"**Current Game: {self.name}**\n{team_info}\nStarted at: {game_start_time.astimezone(timezone('US/Pacific')).strftime('%I:%M %p')}"
                 await interaction.channel.send(message, view=StartView(game_attributes, run))
                 await interaction.message.delete()
             else:
